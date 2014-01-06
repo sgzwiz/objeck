@@ -1,0 +1,1371 @@
+#~~
+# XML parsing library
+# Copyright (c) 2010-2012 Randy Hollines
+~~#
+
+use Collection;
+
+bundle XML {
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# XML Parser class
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+	class XmlBuilder {
+		@root : XmlElement;
+		@version : String;
+		@encoding : String;
+		
+		New(name : String) {
+			@root := XmlElement->New(XmlElementType->ELEMENT, name);
+		}
+		
+		New(name : String, version : String) {
+			@root := XmlElement->New(XmlElementType->ELEMENT, name);
+			@version := version;
+		}
+		
+		New(name : String, version : String, encoding : String) {
+			@root := XmlElement->New(XmlElementType->ELEMENT, name);
+			@version := version;
+			@encoding := encoding;
+		}
+		
+		method : public : GetRoot() ~ XmlElement {
+			return @root;
+		}
+		
+		method : public : GetVersion() ~ String {
+			return @version;
+		}
+		
+		method : public : SetVersion(version : String) ~ Nil {
+			@version := version;
+		}
+		
+		method : public : GetEncoding() ~ String {
+			return @encoding;
+		}
+		
+		method : public : SetEncoding(encoding : String) ~ Nil {
+			@encoding := encoding;
+		}
+		
+		method : public : ToString() ~ String {
+			# add declaration
+			out := String->New();
+			if(@version <> Nil) {
+				out->Append("<?xml version=\"");
+				out->Append(@version);
+				if(@encoding <> Nil) {
+					out->Append("\" encoding=\"");
+					out->Append(@encoding);
+				};
+				out->Append("\"?>");
+			};
+			# serialize DOM
+			out->Append(@root->ToString());
+			
+			return out;
+		}
+	}
+	
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# XML Parser class
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+	class XmlParser {
+		@buffer : Char[];
+		@buffer_pos : Int;
+		@error_msg : String;
+		@root : XmlElement;
+		@declarations : StringHash;
+		
+		New(string : String) {
+			@buffer := string->ToCharArray();
+			@buffer_pos := 0;
+			@declarations := StringHash->New();
+		}
+		
+		New(buffer : Char[]) {
+			@buffer := buffer;
+			@buffer_pos := 0;
+			@declarations := StringHash->New();
+		}
+		
+		method : public : GetError() ~ String {
+			return @error_msg;
+		}
+		
+		method : public : GetVersion() ~ String {
+			element : XmlElement := @declarations->Find("xml")->As(XmlElement);
+			if(element <> Nil) {
+				attrib := element->GetAttribute("version");
+				if(attrib <> Nil) {
+					return attrib->GetValue();
+				};
+			};
+			
+			return "1.0";
+		}
+		
+		method : public : GetEncoding() ~ String {
+			element : XmlElement := @declarations->Find("xml")->As(XmlElement);
+			if(element <> Nil) {
+				attrib := element->GetAttribute("encoding");
+				if(attrib <> Nil) {
+					return attrib->GetValue();
+				};
+			};
+			
+			return "iso-8859-1";
+		}
+		
+		method : public : ToString() ~ String {
+			# add declaration
+			out := String->New();
+			out->Append("<?xml version=\"");
+#			out->Append(GetVersion());
+			out->Append("1.0");
+			out->Append("\" encoding=\"");
+#			out->Append(GetVersion());
+			out->Append("iso-8859-1");
+			out->Append("\"?>");
+			
+			# serialize DOM
+			out->Append(@root->ToString());
+			
+			return out;
+		}
+		
+		method : public : FindElements(path : String) ~ Vector {
+			return @root->FindElements(path);
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# parses element tags
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : public : Parse() ~ Bool {
+			if(@error_msg <> Nil) {
+				return false;
+			};
+			
+			# parser first tag
+			tag := ParseElement();
+			if(@error_msg <> Nil) {
+				return false;
+			};
+
+			# parse declarations
+			while(tag->GetType() = XmlElementType->DECLARATION) {
+				@declarations->Insert(tag->GetName(), tag);
+				# update
+				tag := ParseElement();
+				if(@error_msg <> Nil) {
+					return false;
+				};
+			};
+			
+			# find root
+			if(tag->GetType() = XmlElementType->ELEMENT) {
+				@root := tag;
+			}
+			else {
+				@error_msg := "Invalid root element...";
+				return false;
+			};
+			
+			stack := Stack->New();
+			while(tag <> Nil) {
+				# update element stack
+				if(tag->GetType() = XmlElementType->ELEMENT) {
+					parent : XmlElement;
+					if(stack->IsEmpty() = false) {
+						parent := stack->Top()->As(XmlElement);
+						parent->AddChild(tag);
+						tag->SetParent(parent);
+					};
+					stack->Push(tag);
+				}
+				else if(tag->GetType() = XmlElementType->UNARY_ELEMENT | 
+					tag->GetType() = XmlElementType->CDATA) {
+					parent : XmlElement;
+					if(stack->IsEmpty() = false) {
+						parent := stack->Top()->As(XmlElement);
+						parent->AddChild(tag);
+						tag->SetParent(parent);
+					};
+				}
+				else if(tag->GetType() = XmlElementType->CLOSING_ELEMENT) {
+					top : XmlElement := stack->Top()->As(XmlElement);
+					if(top->GetType() = XmlElementType->ELEMENT) {
+						stack->Pop();
+					}
+					else {
+						@error_msg := "Mismatch tag types...";
+						return false;
+					};
+					
+					if(top->GetName()->Equals(tag->GetName()) <> true) {
+						@error_msg := "Mismatch tag names...";
+						return false;
+					};
+				}
+				else {
+					@error_msg := "Invalid tag type...";
+					return false;
+				};
+				
+				if(@error_msg <> Nil) {
+					return false;
+				};
+				
+				# update
+				tag := ParseElement();
+				if(@error_msg <> Nil) {
+					return false;
+				};
+			};
+			
+			return true;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# ignores whitespace
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : native : IgnoreWhiteSpace() ~ Nil {
+			# ignore whitespace
+			while(@buffer_pos < @buffer->Size() & WhiteSpace(@buffer[@buffer_pos])) {
+				@buffer_pos += 1;
+			};
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# parse attribute name
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : native : ParseName() ~ String {
+			# check name start
+			buffer_char := @buffer[@buffer_pos]->As(Char);
+			if(@buffer_pos < @buffer->Size() & (buffer_char->IsChar() |
+				@buffer[@buffer_pos] = ':' | @buffer[@buffer_pos] = '_')) {
+				# look for name end
+				start_pos := @buffer_pos;
+				while(@buffer_pos < @buffer->Size() & (buffer_char->IsChar() | 
+					buffer_char->IsDigit() |
+					@buffer[@buffer_pos] = '-' | @buffer[@buffer_pos] = '.' | 
+					@buffer[@buffer_pos] = ':')) {
+					# update
+					@buffer_pos += 1;
+					buffer_char := @buffer[@buffer_pos]->As(Char);
+				};
+				
+				# copy buffer
+				name := String->New();
+				for(i := start_pos; i < @buffer_pos; i += 1;) {
+					name->Append(@buffer[i]);
+				};
+				
+				return name;
+			};
+						
+			return Nil;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# parse attribute value
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : native : ParseValue() ~ String {
+			# check name start
+			if(Match('"')) {
+				# look for name end
+				@buffer_pos += 1;
+				start_pos := @buffer_pos;
+				while(Unmatch('"')) {
+					@buffer_pos += 1;
+				};
+				
+				if(Match('"')) {
+					# copy buffer
+					name := String->New();
+					for(i := start_pos; i < @buffer_pos; i += 1;) {
+						c : Char := @buffer[i];
+						select(c) {
+							label ' ': {
+								name->Append("&#x20;");
+							}
+							
+							label '\t': {
+								name->Append("&#x9;");
+							}
+							
+							label '\n': {
+								name->Append("&#xA;");
+							}
+							
+							label '\r': {
+								name->Append("&#xD;");
+							}
+							
+							other: {
+								name->Append(@buffer[i]);
+							}
+						};
+					};
+					@buffer_pos += 1;
+					
+					return name;
+				};
+				
+				return Nil;
+			}
+			else if(Match('\'')) {
+				# look for name end
+				@buffer_pos += 1;
+				start_pos := @buffer_pos;
+				while(Unmatch('\'')) {
+					@buffer_pos += 1;
+				};
+				
+				if(Match('\'')) {
+					# copy buffer
+					name := String->New();
+					for(i := start_pos; i < @buffer_pos; i += 1;) {
+						c : Char := @buffer[i];
+						select(c) {
+							label ' ': {
+								name->Append("&#x20;");
+							}
+							
+							label '\t': {
+								name->Append("&#x9;");
+							}
+							
+							label '\n': {
+								name->Append("&#xA;");
+							}
+							
+							label '\r': {
+								name->Append("&#xD;");
+							}
+							
+							other: {
+								name->Append(@buffer[i]);
+							}
+						};
+					};
+					@buffer_pos += 1;
+					
+					return name;
+				};
+				
+				return Nil;
+			};
+			
+			return Nil;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# define whitespce
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : native : WhiteSpace(c : Char) ~ Bool {
+			if(c = ' ' | c = '\t' | c = '\r' | c = '\n') {
+				return true;
+			};
+			
+			return false;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# match and unmatch
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : native : Match(c : Char) ~ Bool {
+			if(@buffer_pos < @buffer->Size() & @buffer[@buffer_pos] = c) {
+				return true;
+			};
+			
+			return false;
+		}
+		
+		method : native : Unmatch(c : Char) ~ Bool {
+			if(@buffer_pos < @buffer->Size() & @buffer[@buffer_pos] <> c) {
+				return true;
+			};
+			
+			return false;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# parse element
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : public : native : ParseElement() ~ XmlElement {
+			# are we done?
+			IgnoreWhiteSpace();
+			if(@buffer_pos = @buffer->Size()) {
+				return Nil;
+			};
+			
+			# looks for '<'
+			if(Unmatch('<')) {
+				@error_msg := "Expected '<'...";
+				return Nil;
+			};
+			@buffer_pos += 1;
+			IgnoreWhiteSpace();
+			
+			
+			is_end_tag := false;
+			is_dclr_tag := false;
+			
+			# looks for '</'
+			if(Match('/')) {
+				is_end_tag := true;
+				@buffer_pos += 1;
+			}
+			# looks for '<?xml'
+			else if(Match('?')) {
+				@buffer_pos += 1;
+				is_dclr_tag := true;
+			}
+			# looks for '<!'
+			else if(Match('!')) {
+				@buffer_pos += 1;
+			
+				# comment
+				if(Match('-')) {
+					@buffer_pos += 1;
+						
+					if(Unmatch('-')) {
+						@error_msg := "Unsupported tag...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+			
+					# ignore commented chars
+					state := 0;
+					while(@buffer_pos < @buffer->Size() & state < 3) {
+						@buffer_pos += 1;
+											
+						# match comment end
+						if(Match('-')) {
+							if(state = 0) {
+								state := 1;
+							}
+							else if(state = 1) {
+								state := 2;
+							}
+							else {
+								state := 0;
+							};
+						}
+						else if(Match('>') & state = 2) {
+							state := 3;
+							@buffer_pos += 1;
+						}
+						else {
+							state := 0;
+						};
+					};
+						
+					# rest for comment
+					IgnoreWhiteSpace();
+					if(@buffer_pos = @buffer->Size()) {
+						return Nil;
+					};
+						
+					# looks for '<'
+					if(Unmatch('<')) {
+						@error_msg := "Expected '<'...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+					IgnoreWhiteSpace();
+						
+					# looks for '</'
+					is_end_tag := false;
+					if(Match('/')) {
+						is_end_tag := true;
+						@buffer_pos += 1;
+					};
+				}
+				# cdata section
+				else if(Match('[')) {
+					@buffer_pos += 1;
+						
+					if(Unmatch('C')) {
+						@error_msg := "Unsupported tag...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+				
+					if(Unmatch('D')) {
+						@error_msg := "Unsupported tag...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+				
+					if(Unmatch('A')) {
+						@error_msg := "Unsupported tag...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+				
+					if(Unmatch('T')) {
+						@error_msg := "Unsupported tag...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+				
+					if(Unmatch('A')) {
+						@error_msg := "Unsupported tag...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+				
+					if(Unmatch('[')) {
+						@error_msg := "Unsupported tag...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+					
+					# ignore commented chars
+					state := 0;
+					start_pos := @buffer_pos;
+					while(@buffer_pos < @buffer->Size() & state < 3) {
+						@buffer_pos += 1;
+										
+						# match comment end
+						if(Match(']')) {
+							if(state = 0) {
+								state := 1;
+							}
+							else if(state = 1) {
+								state := 2;
+							}
+							else {
+								state := 0;
+							};
+						}
+						else if(Match('>') & state = 2) {
+							state := 3;
+							@buffer_pos += 1;
+						};
+					};				
+					# copy data
+					data := String->New();
+					for(i := start_pos; i < @buffer_pos - 3; i += 1;) {
+						data->Append(@buffer[i]);
+					};
+					
+# Console->Print("cdata: ")->PrintLine(data);					
+						
+					return XmlElement->New(XmlElementType->CDATA, Nil->As(String), 
+						Nil->As(StringHash), data);
+				}
+				else {
+					@error_msg := "Unsupported tag...";
+					return Nil;
+				};
+			};
+				
+			# looks for tag name or multpile comments
+			IgnoreWhiteSpace();
+			tag_name : String;
+			if(Match('!')) {
+				@buffer_pos -= 1;
+				return ParseElement();
+			}
+			else {
+				tag_name := ParseName();
+				if(tag_name = Nil) {
+					@error_msg := "Invalid tag name...";
+					return Nil;
+				};
+			};
+			
+# Console->GetInstance()->Print("name: ")->PrintLine(tag_name); 
+		  
+			# look for attributes
+			IgnoreWhiteSpace();
+			attrib_key := ParseName();
+			if(attrib_key <> Nil & is_end_tag) {
+				@error_msg := "End tags may not have attributes...";
+				return Nil;
+			};
+		  
+			attribs : StringHash := Nil; 
+			if(attrib_key <> Nil) {
+				attribs := StringHash->New();
+				while(attrib_key <> Nil) {	
+			
+# Console->Print("key: ")->PrintLine(attrib_key);    
+					
+					IgnoreWhiteSpace();
+					if(Unmatch('=')) {
+						@error_msg := "Expected '='...";
+						return Nil;
+					};
+					@buffer_pos += 1;
+				
+					# looks for tag value
+					IgnoreWhiteSpace();
+					attrib_value := ParseValue();
+					if(attrib_value = Nil) {
+						@error_msg := "Invalid tag name...";
+						return Nil;
+					};
+			
+# Console->Print("value: ")->PrintLine(attrib_value);    
+			
+					attrib := XmlAttribute->New(attrib_key, attrib_value);
+					attribs->Insert(attrib->GetName(), attrib);
+			
+					# update
+					IgnoreWhiteSpace();
+					attrib_key := ParseName();
+				};
+			};
+		  
+			# unary
+			is_unary_tag := false;
+			if(Match('/')) {
+				is_unary_tag := true;
+				@buffer_pos += 1;
+			};
+			if(is_unary_tag & is_end_tag) {
+				@error_msg := "Tag cannot be an end and unary tag...";
+				return Nil;
+			};
+			
+			if(Match('?')) {
+				if(is_dclr_tag = false) {
+					@error_msg := "Invalid declaration tag...";
+					return Nil;
+				};
+				@buffer_pos += 1;
+			};
+			
+			IgnoreWhiteSpace();
+			if(Match('>')) {
+				@buffer_pos += 1;
+			}
+			else {
+				@error_msg := "Expected closing tag...";
+				return Nil;
+			};
+			
+			# copy tag contents
+			start_pos := @buffer_pos;
+			while(Unmatch('<')) {
+				@buffer_pos += 1;
+			};
+			
+			tag_contents : String := Nil;
+			if(@buffer_pos > start_pos) {
+				tag_contents := String->New();
+				for(i := start_pos; i < @buffer_pos; i += 1;) {
+					tag_contents->Append(@buffer[i]);
+				};
+			};				
+	
+			type : XmlElementType;
+			if(is_unary_tag) {
+				type := XmlElementType->UNARY_ELEMENT;
+			}
+			else if(is_dclr_tag) {
+				type := XmlElementType->DECLARATION;
+			}
+			else if(is_end_tag) {
+				type := XmlElementType->CLOSING_ELEMENT;
+			}
+			else {
+				type := XmlElementType->ELEMENT;
+			};
+			
+			return XmlElement->New(type, tag_name, attribs, tag_contents);
+		}
+			
+		method : public : GetRoot() ~ XmlElement {
+			return @root;
+		}
+	}
+	
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# XmlElement types
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+	enum XmlElementType {
+		DECLARATION,
+		CDATA,
+		ELEMENT,
+		CLOSING_ELEMENT, # control type not used for DOM creation
+		UNARY_ELEMENT
+	}
+
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# XmlAttribute class
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+	class XmlAttribute {
+		@name : String;
+		@value : String;
+		@namespace : String;
+
+		New(name : String, value : String) {
+			SetNames(name);
+			@value := value;
+		}
+
+		method : SetNames(name : String) ~ Nil {
+		 offset := name->FindLast(':');
+		 if(offset > 0) {
+		   @namespace := name->SubString(offset);
+		   offset += 1;
+		   @name := name->SubString(offset, name->Size() - offset);
+		  }
+			else {
+				@namespace := "";
+				@name := name;
+			};
+		}
+
+		method : public : GetName() ~ String {
+			return String->New(@name);
+		}
+
+		method : public : SetName(name : String) ~ Nil {
+			@name := name;
+		}
+
+		method : public : GetValue() ~ String {
+			return String->New(@value);
+		}
+
+		method : public : SetValue(value : String) ~ Nil {
+			@value := value;
+		}
+
+		method : public : GetNamespace() ~ String {
+			return String->New(@namespace);
+		}
+		
+		method : public : SetNamespace(namespace : String) ~ Nil {
+			@namespace := namespace;
+		}
+	}
+	
+	#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	# XmlElement class
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+	class XmlElement {
+		@name : String;
+		@namespace : String;
+		@type : XmlElementType;
+		@attribs : StringHash;
+		@content : String;
+		@elem_parent : XmlElement;
+		@children : Vector;
+		
+		New(type : XmlElementType, name : String) {
+			@type := type;
+			SetNames(name);
+		}
+		
+		New(type : XmlElementType, name : String, content : String) {
+			@type := type;
+			@content := content;
+			SetNames(name);			
+		}
+		
+		New(type : XmlElementType, name : String, attribs : StringHash, content : String) {
+			@type := type;
+			@attribs := attribs;
+			@content := content;
+			SetNames(name);
+		}
+		
+		method : SetNames(name : String) ~ Nil {
+		 offset := name->FindLast(':');
+		 if(offset > 0) {
+		   @namespace := name->SubString(offset);
+		   offset += 1;
+		   @name := name->SubString(offset, name->Size() - offset);
+		  }
+			else {
+				@namespace := "";
+				@name := name;
+			};
+		}
+		
+		method : public : GetName() ~ String {
+			return String->New(@name);
+		}
+		
+		method : public : SetName(name : String) ~ Nil {
+			@name := name;
+		}
+
+		method : public : GetNamespace() ~ String {
+			return String->New(@namespace);
+		}
+
+		method : public : SetNamespace(namespace : String) ~ Nil {
+			@namespace := namespace;
+		}
+		
+		method : public : GetType() ~ XmlElementType {
+			return @type;
+		}
+		
+		method : public : SetType(type : XmlElementType) ~ Nil {
+			@type := type;
+		}
+		
+		method : public : GetContent() ~ String {
+			return String->New(@content);
+		}
+		
+		method : public : SetContent(content : String) ~ Nil {
+			@content := content;
+		}
+		
+		method : public : AddAttribute(attrib : XmlAttribute) ~ Nil {
+			if(@attribs = Nil) {
+				@attribs := StringHash->New();
+			};
+			@attribs->Insert(attrib->GetName(), attrib);
+		}
+		
+		method : public : GetAttribute(key : String) ~ XmlAttribute {
+			if(@attribs <> Nil) {
+				return @attribs->Find(key)->As(XmlAttribute);
+			};
+			
+			return Nil;
+		}
+		
+		method : public : AddChild(tag : XmlElement) ~ Nil {
+			if(@children = Nil) {
+				@children := Vector->New();
+			};
+			@children->AddBack(tag);
+		}
+		
+		method : public : GetChildCount() ~ Int {
+			if(@children <> Nil) {
+				return @children->Size();
+			};
+		
+			return 0;
+		}
+		
+		method : public : GetChild(i : Int) ~ XmlElement {
+			if(@children <> Nil & i < @children->Size()) {
+				return @children->Get(i)->As(XmlElement);
+			};
+			
+			return Nil;
+		}
+		
+		method : public : GetParent() ~ XmlElement {
+			return @elem_parent;
+		}
+		
+		method : public : SetParent(parent : XmlElement) ~ Nil {
+			@elem_parent := parent;
+		}
+		
+		method : public : ToString() ~ String {
+			in := String->New();
+			ToString(in);
+			return in;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# serializes an element 
+		# into a string
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : ToString(in : String) ~ Nil {
+			# element
+			if(@name <> Nil & @type = XmlElementType->ELEMENT) {
+				in->Append('<');
+				# name and namespace
+				if(@namespace <> Nil & @namespace->Size() > 0) {
+					in->Append(@namespace);
+					in->Append(':');
+				};				
+				in->Append(@name);
+				
+				# attribs
+				if(@attribs <> Nil) {
+					keys := @attribs->GetKeys();
+					each(i : keys) {
+						key : String := keys->Get(i)->As(String);
+						attrib := @attribs->Find(key)->As(XmlAttribute);
+						in->Append(' ');
+						namespace := attrib->GetNamespace();
+						if(namespace <> Nil & namespace->Size() > 0) {
+							in->Append(namespace);
+							in->Append(':');
+						};
+						in->Append(key);
+						in->Append('=');
+						in->Append('"');
+						in->Append(attrib->GetValue());
+						in->Append('"');
+					};
+				};
+				in->Append('>');
+				
+				# process content
+				if(@content <> Nil) {
+					in->Append(@content);
+				};
+					
+				# process children
+				if(@children <> Nil) {
+					each(i : @children) {
+						child : XmlElement := @children->Get(i)->As(XmlElement);
+						child->ToString(in);
+					};
+				};
+				in->Append('<');
+				in->Append('/');
+				in->Append(@name);
+				in->Append('>');
+			}
+			# cdata
+			else if(@type = XmlElementType->CDATA) {
+				in->Append("<![CDATA[");
+				if(@content <> Nil) {
+					in->Append(@content);
+				};
+				in->Append("]]>");
+			};
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# get all children that 
+		# match the given filter
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : public : native : GetChildren(name : String) ~ Vector {
+			filtered := Vector->New();
+			if(@children <> Nil) {
+				each(i : @children) {
+					element : XmlElement := @children->Get(i);
+					if(element->GetName()->Equals(name)) {
+						filtered->AddBack(element);
+					};
+				};
+			};
+						
+			return filtered;
+		}
+		
+		method : public : native : GetFirstChild(name : String) ~ Vector {
+			first := Vector->New();
+			
+			filtered := GetChildren(name);
+			if(filtered->Size() > 0) {
+				first->AddBack(filtered->Get(0));
+			};
+			
+			return first;
+		}
+		
+		method : public : native : GetLastChild(name : String) ~ Vector {
+			first := Vector->New();
+			
+			filtered := GetChildren(name);
+			if(filtered->Size() > 0) {
+				first->AddBack(filtered->Get(filtered->Size() - 1));
+			};
+			
+			return first;
+		}
+		
+		method : public : native : GetChildren(name : String, attrib : String) ~ Vector {
+			filtered := Vector->New();
+			each(i : @children) {
+				element : XmlElement := @children->Get(i);
+				if(element->GetName()->Equals(name) & element->GetAttribute(attrib) <> Nil) {
+					filtered->AddBack(element);
+				};
+			};
+			
+			return filtered;
+		}
+		
+		method : public : native : GetChildren(name : String, max : Int) ~ Vector {
+			filtered := Vector->New();
+			if(max > 0) {
+				found := 0;
+				for(i := 0; i < @children->Size() & found < max; i += 1;) {
+					element : XmlElement := @children->Get(i);
+					if(element->GetName()->Equals(name)) {
+						filtered->AddBack(element);
+						found += 1;
+					};
+				};
+			};
+			
+			return filtered;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# get all children
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : public : GetChildren() ~ Vector {
+			return @children;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# parses element name
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : public : GetElementName(filter : String) ~ String {
+			name := String->New();
+			
+			i := 0;
+			while(i < filter->Size() & filter->Get(i) <> '[') {
+				name->Append(filter->Get(i));
+				i += 1;
+			};
+			
+			return name;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# parses element expression
+		# tags
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : public : GetElementExpression(filter : String) ~ String {
+			if(filter->EndsWith("]")) {
+				end_pos := filter->Size() - 1;
+				start_pos := end_pos;
+				while(start_pos > -1 & filter->Get(start_pos) <> '[') {
+					start_pos -= 1;
+				};
+
+				expr : String;
+				if(start_pos < end_pos) {
+					start_pos += 1;
+					expr := filter->SubString(start_pos, end_pos - start_pos);	
+				};
+								
+				return expr;
+			};
+			
+			return Nil;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# parses element expression
+		# tags
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : public : ProcessExpression(filter : String, element : XmlElement) ~ Vector {
+			expr := GetElementExpression(filter);
+			if(expr <> Nil) {
+				if(expr->Equals("first()")) {
+					return element->GetFirstChild(GetElementName(filter));
+				}
+				else if(expr->Equals("last()")) {
+					return element->GetLastChild(GetElementName(filter));
+				}
+				else {
+					if(expr->Size() > 0) {
+						if(expr->Get(0)->IsDigit()) {
+							max := expr->Trim()->ToInt();
+							return element->GetChildren(GetElementName(filter), max);
+						} 
+						else if(expr->Get(0)->IsChar()) {
+							return element->GetChildren(GetElementName(filter), expr);
+						};
+					};
+				};
+				
+				return Vector->New();
+			};
+				
+			return element->GetChildren(filter);
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# finds all elements in a
+		# given path
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		method : public : FindElements(path : String) ~ Vector {
+			children := Vector->New();
+						
+			# tokenize path into filters
+			start := 0;
+			filters := Vector->New();
+			each(i : path) {
+				if(path->Get(i) = '/') {
+					if(i - start > 0) {
+						filter := path->SubString(start, i - start);
+						filters->AddBack(filter);
+					};
+					start := i + 1;
+				};
+			};
+			if(start < path->Size() & path->Size() - start > 0) {
+				filter := path->SubString(start, path->Size() - start);
+				filters->AddBack(filter);
+			};
+			
+			# process query
+			first_filter := filters->Get(0)->As(String);
+			if(filters->Size() > 0 & first_filter->Equals(@self->GetName())) {
+				if(filters->Size() = 1) {
+					children->AddBack(@self);
+				}
+				else {
+					# process root query
+					filter := filters->Get(1)->As(String);
+					children := ProcessExpression(filter, @self);
+											
+					# process children
+					for(i := 2; i < filters->Size(); i += 1;) {
+						# get filter
+						filter := filters->Get(i)->As(String);
+						# filter children
+						all_filtered := Vector->New();
+						each(j : children) {
+							# process child queries
+							element := children->Get(j)->As(XmlElement);
+							filtered := ProcessExpression(filter, element);
+							all_filtered->AddBack(filtered);
+						};
+						children := all_filtered;
+					};
+				};
+			};
+			
+			return children;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# encodes an XML string
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		function : EncodeString(in : String) ~ String {
+			out := String->New();
+			
+			each(i : in) {
+				c := in->Get(i);
+				select(c) {
+					label ' ': {
+						out->Append("&#x20;");
+					}
+					
+					label '\t': {
+						out->Append("&#x9;");
+					}
+					
+					label '\n': {
+						out->Append("&#xA;");
+					}
+					
+					label '\r': {
+						out->Append("&#xD;");
+					}
+					
+					other: {
+						out->Append(c);
+					}
+				};
+			};
+			
+			return out;
+		}
+		
+		#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		# decodes an XML string
+		~~~~~~~~~~~~~~~~~~~~~~~~~~~~~# 
+		function : DecodeString(in : String) ~ String {
+			max := in->Size();
+			i := 0;
+			
+			out := String->New();
+			while(i < max) {
+				c := in->Get(i);
+				# &lt;
+				if(c = '&') {
+					start := i;
+					i += 1;
+					if(i < max & in->Get(i) = 'l') {
+						i += 1;
+						if(i < max & in->Get(i) = 't') {
+							i += 1;
+							if(i < max & in->Get(i) = ';') {
+								out->Append('<');
+							}
+							else {
+								for(j := start; j < i; j += 1;) {
+									out->Append(in->Get(j));
+								};
+								out->Append(c);
+							};
+						}
+						else {
+							for(j := start; j < i; j += 1;) {
+								out->Append(in->Get(j));
+							};
+							out->Append(c);
+						};
+					}
+					# &gt;
+					else if(i < max & in->Get(i) = 'g') {
+						i += 1;
+						if(i < max & in->Get(i) = 't') {
+							i += 1;
+							if(i < max & in->Get(i) = ';') {
+								out->Append('>');
+							}
+							else {
+								for(j := start; j < i; j += 1;) {
+									out->Append(in->Get(j));
+								};
+								out->Append(c);
+							};
+						}
+						else {
+							for(j := start; j < i; j += 1;) {
+								out->Append(in->Get(j));
+							};
+							out->Append(c);
+						};
+					}
+					# &amp;
+					else if(i < max & in->Get(i) = 'a') {
+						i += 1;
+						if(i < max & in->Get(i) = 'm') {
+							i += 1;
+							if(i < max & in->Get(i) = 'p') {
+								i += 1;
+								if(i < max & in->Get(i) = ';') {
+									out->Append('&');
+								}
+								else {
+									for(j := start; j < i; j += 1;) {
+										out->Append(in->Get(j));
+									};
+									out->Append(c);
+								};
+							}
+							else {
+								for(j := start; j < i; j += 1;) {
+									out->Append(in->Get(j));
+								};
+								out->Append(c);
+							};
+						}
+						else if(i < max & in->Get(i) = 'p') {
+							i += 1;
+							if(i < max & in->Get(i) = 'o') {
+								i += 1;
+								if(i < max & in->Get(i) = 's') {
+									i += 1;
+									if(i < max & in->Get(i) = ';') {
+										out->Append('\'');
+									}
+									else {
+										for(j := start; j < i; j += 1;) {
+											out->Append(in->Get(j));
+										};
+										out->Append(c);
+									};
+								}
+								else {
+									for(j := start; j < i; j += 1;) {
+										out->Append(in->Get(j));
+									};
+									out->Append(c);
+								};
+							}
+							else {
+								for(j := start; j < i; j += 1;) {
+									out->Append(in->Get(j));
+								};
+								out->Append(c);
+							};
+						};
+					}
+					# &quot;
+					else if(i < max & in->Get(i) = 'q') {
+						i += 1;
+						if(i < max & in->Get(i) = 'u') {
+							i += 1;
+							if(i < max & in->Get(i) = 'o') {
+								i += 1;
+								if(i < max & in->Get(i) = 't') {
+									i += 1;
+									if(i < max & in->Get(i) = ';') {
+										out->Append('"');
+									}
+									else {
+										for(j := start; j < i; j += 1;) {
+											out->Append(in->Get(j));
+										};
+										out->Append(c);
+									};
+								}
+								else {
+									for(j := start; j < i; j += 1;) {
+										out->Append(in->Get(j));
+									};
+									out->Append(c);
+								};
+							}
+							else {
+								for(j := start; j < i; j += 1;) {
+									out->Append(in->Get(j));
+								};
+								out->Append(c);
+							};
+						}
+						else {
+							for(j := start; j < i; j += 1;) {
+								out->Append(in->Get(j));
+							};
+							out->Append(c);
+						};
+					}
+					# &quot;
+					else if(i < max & in->Get(i) = '#') {
+						i += 1;
+						if(i < max & in->Get(i) = 'x') {
+							i += 1;
+							str_num := "0x";
+							while(i < max & (in->Get(i)->IsDigit() | 
+								(in->Get(i) >= 'a' & in->Get(i) <= 'f') |
+								(in->Get(i) >= 'A' & in->Get(i) <= 'F'))) {
+								str_num->Append(in->Get(i));
+								i += 1;
+							};
+							
+							if(i < max & in->Get(i) = ';') {
+								out->Append(str_num->ToInt()->As(Char));
+								i += 1;
+							}
+							else {
+								out->Append(str_num);
+							};
+						}
+						else {
+							for(j := start; j < i; j += 1;) {
+								out->Append(in->Get(j));
+							};
+							out->Append(c);
+						};
+					}
+					else {
+						for(j := start; j < i; j += 1;) {
+							out->Append(in->Get(j));
+						};
+						out->Append(c);
+					};
+				}
+				else {
+					out->Append(c);
+					i += 1;
+				};
+			};
+			
+			return out;
+		}
+	}
+}

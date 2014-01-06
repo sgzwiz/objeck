@@ -1,0 +1,402 @@
+use System.IO;
+use System.API;
+use Collection;
+use HTTP;
+ 
+bundle FastCgi {
+	interface Handler {
+		function : virtual : Forward(req : Request, res : Response) ~ Nil;
+	}
+
+	class Proxy {
+		@lib_proxy : static : DllProxy;
+		
+		function : GetDllProxy() ~ DllProxy {
+			if(@lib_proxy = Nil) {
+				lib_path := Runtime->GetProperty("fcgi-lib-path");
+				if(lib_path = Nil | lib_path->Size() = 0) {
+					lib_path := "/var/lib/apache2/fastcgi/fcgi";
+				};				
+
+				Console->Error("### FCGI lib-path=")->Error(lib_path)->ErrorLine(" ###");
+
+				@lib_proxy := DllProxy->New(lib_path);
+			};
+
+			return @lib_proxy;
+		}
+	}
+
+	#~
+	# FastCgi Request 
+	~#
+	class Request {
+		@native_in : Int;
+		@native_envp : Int;
+		@cookies : StringMap;
+		@query : String;
+		@query_values : StringMap;
+		@data : String;
+		@data_values : StringMap;
+		
+		method : public : GetProtocol() ~ String {
+			if(@native_envp <> 0) {
+				array_args := Base->New[2];
+				array_args[0] := IntHolder->New(@native_envp);
+
+				@lib_proxy := Proxy->GetDllProxy();
+				@lib_proxy->CallFunction("fcgi_get_protocol", array_args);
+				value := array_args[1]->As(String);
+				return value;
+			};
+			
+			return "";
+		}
+
+		method : public : GetClientAddress() ~ String {
+			if(@native_envp <> 0) {
+				array_args := Base->New[2];
+				array_args[0] := IntHolder->New(@native_envp);
+
+				@lib_proxy := Proxy->GetDllProxy();
+				@lib_proxy->CallFunction("fcgi_get_remote_address", array_args);
+				value := array_args[1]->As(String);
+				return value;
+			};
+			
+			return "";
+		}
+
+		method : public : GetRequestMethod() ~ String {
+			if(@native_envp <> 0) {
+				array_args := Base->New[2];
+				array_args[0] := IntHolder->New(@native_envp);
+
+				@lib_proxy := Proxy->GetDllProxy();
+				@lib_proxy->CallFunction("fcgi_get_request_method", array_args);
+				value := array_args[1]->As(String);
+				return value;
+			};
+			
+			return "";
+		}
+
+		method : public : GetRequestUri() ~ String {
+			if(@native_envp <> 0) {
+				array_args := Base->New[2];
+				array_args[0] := IntHolder->New(@native_envp);
+
+				@lib_proxy := Proxy->GetDllProxy();
+				@lib_proxy->CallFunction("fcgi_get_request_uri", array_args);
+				value := array_args[1]->As(String);
+				return value;
+			};
+			
+			return "";
+		}
+
+		method : ProcessCookies(string : String) ~ Nil {
+			@cookies := StringMap->New();
+			name_values := string->Split(";");
+			if(name_values <> Nil & name_values->Size() > 0) {
+				each(i : name_values) {
+					name_value := name_values[i]->Split("=");
+					if(name_value <> Nil & name_value->Size() = 2) {
+						@cookies->Insert(name_value[0]->Trim(), name_value[1]->Trim());
+					};
+				};
+			}
+			else {
+				name_value := string->Split("=");
+				if(name_value <> Nil & name_value->Size() = 2) {
+					@cookies->Insert(name_value[0]->Trim(), name_value[1]->Trim());
+				};
+			};
+		}
+		
+		method : public : GetCookie(name : String) ~ String {
+			if(@native_envp <> 0) {
+				array_args := Base->New[2];
+				array_args[0] := IntHolder->New(@native_envp);
+
+				@lib_proxy := Proxy->GetDllProxy();
+				@lib_proxy->CallFunction("fcgi_get_cookie", array_args);
+
+				ProcessCookies(array_args[1]->As(String));
+			};
+
+			if(@cookies <> Nil) {
+				return @cookies->Find(name)->As(String);
+			};
+
+			return Nil;
+		}
+
+		method : public : GetQuery() ~ String {
+			if(@query <> Nil) {
+				return @query;
+			};
+		
+			if(@native_envp <> 0) {
+				array_args := Base->New[2];
+				array_args[0] := IntHolder->New(@native_envp);
+
+				@lib_proxy := Proxy->GetDllProxy();
+				@lib_proxy->CallFunction("fcgi_get_query", array_args);
+				@query := array_args[1]->As(String);
+				
+				return @query;
+			};
+			
+			return Nil;
+		}
+
+		method : public : GetQueryValue(name : String) ~ String {
+			if(@query_values = Nil) {
+				@query_values := ParseNameValues(GetQuery());
+			};
+			
+			return @query_values->Find(name)->As(String);
+		}
+
+		method : public : GetData() ~ String {
+			if(@data <> Nil) {
+				return @data;
+			};
+					
+			if(@native_in <> 0) {
+				array_args := Base->New[3];
+				array_args[0] := IntHolder->New(@native_in);
+				array_args[1] := IntHolder->New(@native_envp);
+
+				@lib_proxy := Proxy->GetDllProxy();
+				@lib_proxy->CallFunction("fcgi_get_response", array_args);
+				@data := array_args[2]->As(String);
+				
+				return @data;
+			};
+			
+			return Nil;
+		}
+		
+		method : public : GetDataValue(name : String) ~ String {
+			if(@data_values = Nil) {
+				@data_values := ParseNameValues(GetData());
+			};
+			
+			return @data_values->Find(name)->As(String);
+		}
+		
+		function : ParseNameValues(params : String) ~ StringMap {
+			parameters := StringMap->New();
+			if(params <> Nil & params->Size() > 0) {
+				name_values := params->Split("&");
+				if(name_values->Size() > 0) {
+					each(i : name_values) {
+						name_value := name_values[i]->Split("=");
+						if(name_value->Size() = 2) {
+							parameters->Insert(name_value[0], name_value[1]);
+						};
+					};
+				}
+				else {
+					name_value := params->Split("=");
+					if(name_value->Size() = 2) {
+						parameters->Insert(name_value[0], name_value[1]);
+					};
+				};
+			};
+
+			return parameters;
+		}
+	}
+
+	#~
+	# FastCgi Response 
+	~#
+	class Response {
+		@native_out : Int;
+		@native_err : Int;
+		@cookies : String;
+		@body : String;
+		
+		method : public : AddBody(s : String) ~ Nil {
+			if(@body = Nil) {
+				@body := String->New();
+			};
+
+			if(s <> Nil & s->Size() > 0) {
+				@body->Append(s);
+			};
+		}
+
+		method : public : Submit() ~ Nil {
+			WriteRaw("Content-type: text/html\r\nStatus: 200 OK\r\n");
+			if(@cookies <> Nil) {
+				WriteRaw(@cookies);
+			};
+			WriteRaw("\r\n");
+			
+			# TODO: error handle
+			if(@body <> Nil) {
+				WriteRaw(@body);
+			};
+		}
+
+		method : public : AddCookie(name : String, value : String) ~ Nil {
+			AddCookie(name, value, Nil);
+		}
+		
+		method : public : AddCookie(name : String, value : String, expires : Time.Date) ~ Nil {
+			if(@cookies = Nil) {
+				@cookies := String->New();
+			};
+			
+			@cookies->Append("Set-Cookie: ");
+			@cookies->Append(name);
+			@cookies->Append('=');
+			@cookies->Append(value);
+			if(expires <> Nil) {
+				@cookies->Append("; Expires=");
+				@cookies->Append(FormatDate(expires));
+			};
+			@cookies->Append("\r\n");
+		}	
+		
+		method : native : FormatDate(d : Time.Date) ~ String {
+			# format: DAY, DD-MMM-YYYY HH:MM:SS GMT
+			date_str := String->New();
+
+			dd := d->GetDayName();
+			if(dd->Equals("Sunday")) {
+				date_str->Append("Sun");
+			}	
+			else if(dd->Equals("Monday")) {
+				date_str->Append("Mon");
+			}
+			else if(dd->Equals("Tuesday")) {
+				date_str->Append("Tue");
+			}
+			else if(dd->Equals("Wednesday")) {
+				date_str->Append("Wed");
+			}
+			else if(dd->Equals("Thursday")) {
+				date_str->Append("Thu");
+			}
+			else if(dd->Equals("Friday")) {
+				date_str->Append("Fri");
+			}
+			else {
+				date_str->Append("Sat");
+			};
+			date_str->Append(", ");
+
+			day := d->GetDay();
+			if(day < 10) {
+				date_str->Append('0');
+				date_str->Append(day);
+			}
+			else {
+				date_str->Append(day);
+			};
+			date_str->Append('-');
+
+			select(d->GetMonth()) {
+				label 1: {
+					date_str->Append("Jan");
+				}
+
+				label 2: {
+					date_str->Append("Feb");
+				}
+
+				label 3: {
+					date_str->Append("Mar");
+				}
+
+				label 4: {
+					date_str->Append("Apr");
+				}
+
+				label 5: {
+					date_str->Append("May");
+				}
+
+				label 6: {
+					date_str->Append("Jun");
+				}
+
+				label 7: {
+					date_str->Append("Jul");
+				}
+
+				label 8: {
+					date_str->Append("Aug");
+				}
+
+				label 9: {
+					date_str->Append("Sep");
+				}
+
+				label 10: {
+					date_str->Append("Oct");
+				}
+
+				label 11: {
+					date_str->Append("Nov");
+				}
+
+				label 12: {
+					date_str->Append("Dec");
+				}
+			};
+			date_str->Append('-');
+
+			date_str->Append(d->GetYear());
+			date_str->Append(' ');
+
+			hours := d->GetHours();
+			if(hours < 10) {
+				date_str->Append('0');
+				date_str->Append(hours);
+			}
+			else {
+				date_str->Append(hours);
+			};
+			date_str->Append(':');
+
+			mins := d->GetMinutes();
+			if(mins < 10) {
+				date_str->Append('0');
+				date_str->Append(mins);
+			}
+			else {
+				date_str->Append(mins);
+			};
+			date_str->Append(':');
+			
+			secs := d->GetSeconds();
+			if(secs < 10) {
+				date_str->Append('0');
+				date_str->Append(secs);
+			}
+			else {
+				date_str->Append(secs);
+			};
+			date_str->Append(" GMT");
+
+			return date_str;
+		}
+
+		method : WriteRaw(s : String) ~ Nil {
+			if(s <> Nil) {
+				array_args := Base->New[2];
+				array_args[0] := IntHolder->New(@native_out);
+				array_args[1] := s;
+				
+				@lib_proxy := Proxy->GetDllProxy();
+				@lib_proxy->CallFunction("fcgi_write", array_args);
+			};
+		}
+	}
+}

@@ -1,0 +1,52 @@
+bundle Default {
+	class Foo {
+		a : Int;
+		b : Int;
+
+		New() {
+			a := 7;
+			b := 13;
+		}
+
+		method : public : fA() ~ Int {
+			x := 99;
+			g -= x;
+			return a * 5 - b;
+		}
+
+		method : public : fB() ~ Int {
+			return b - 5;
+		}
+	}
+	
+	class Test {
+		function : f1() ~ Int {
+			for(i := 0; i < 3; i += 1;) {
+				a := 5;
+			};
+			return a * 2 + 5;
+		}
+	
+#		function : Run() ~ Nil {
+		function : native : Run() ~ Nil {
+			a := 9;
+			b := 13;
+			f := Foo->New();
+			f->fA()->PrintLine();
+#~
+			f->fA()->PrintLine();
+			f->fB()->PrintLine();
+			for(i := 0; i < 5; i += 1;) {
+				a := f1() + f1();
+			};
+			a->PrintLine();
+			f1 := Foo->New();
+			f1->fA()->PrintLine();
+~#
+		}
+
+		function : Main(args : String[]) ~ Nil {
+			Run();
+		}
+	}
+}

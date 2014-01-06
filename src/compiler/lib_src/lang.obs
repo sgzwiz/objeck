@@ -1,0 +1,3021 @@
+#~~
+# Objeck system classes.
+# Copyright (c) 2008-2013 Randy Hollines
+#
+# note: this file is a system file and can only be compiled using -D_SYSTEM option
+~~#	
+
+bundle System {
+	#~~
+	# Boolean class support
+	~~#	
+	class $Bool {
+		function : Print(b : Bool) ~ Nil {
+			STD_OUT_BOOL;
+		}
+
+		function : PrintLine(b : Bool) ~ Nil {
+			STD_OUT_BOOL;
+			'\n'->Print();
+		}
+
+		function : Error(b : Bool) ~ Nil {
+			STD_ERR_BOOL;
+		}
+
+		function : ErrorLine(b : Bool) ~ Nil {
+			STD_ERR_BOOL;
+			'\n'->Print();
+		}
+
+		function : Size(b : Bool[]) ~ Int {
+			LOAD_ARY_SIZE;
+		}
+
+		function : Size(b : Bool[,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : Size(b : Bool[,,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : native : ToString(b : Bool) ~ String {
+			string : String;
+
+			if(b = true) {
+				string := "true";
+			}
+			else {
+			 	string := "false";
+			};
+
+			return string;			
+		}
+	}
+	
+	class Number {
+		function : native : IntToString(value : Int, string : String) ~ Nil {
+			values := Int->New[16];
+
+			i := 0;
+			if(value < 0) {
+				value *= -1;
+				string->Append('-');
+			};
+
+			while(value >= 10 & i < 16) {
+				mod := value % 10;
+				values[i] := mod;
+				i += 1;
+				value /= 10;
+			};
+			values[i] := value;
+            
+			while(i >= 0) {
+				string->Append((values[i] + 48)->As(Char));
+				i -= 1;
+			};     
+		}
+		
+		function : native : IntToHexString(value : Int, string : String) ~ Nil {
+			values := Int->New[16];
+			
+			i := 0;
+			if(value < 0) {
+				value *= -1;
+				string->Append('-');
+			};
+
+			while(value >= 16 & i < 16) {
+				mod := value % 16;
+				values[i] := mod;
+				i += 1;
+				value /= 16;
+			};
+			values[i] := value;
+            
+			while(i >= 0) {
+				value := values[i];
+				if(value > 9) {
+# value->PrintLine();				
+					string->Append((value + 55)->As(Char));
+				}
+				else {
+					string->Append((value + 48)->As(Char));
+				};
+				i -= 1;
+			};     
+		}
+	}
+	
+	#~~
+	# Byte class support
+	~~#	
+	class $Byte {
+		function : native : Min(l : Byte, r : Byte) ~ Byte {
+			if(l < r) {
+				return l;
+			};
+
+			return r;
+		}
+
+		function : native : Max(l : Byte, r : Byte) ~ Byte {
+			if(l > r) {
+				return l;
+			};
+
+			return r;
+		}
+
+		function : native : Abs(v : Byte) ~ Byte {
+			if(v < 0) {
+				return v * -1;
+			};
+
+			return v;
+		}
+
+		function : Print(b : Byte) ~ Nil {
+			STD_OUT_BYTE;
+		}
+
+		function : PrintLine(b : Byte) ~ Nil {
+			STD_OUT_BYTE;
+			'\n'->Print();
+		}
+
+		function : Error(b : Byte) ~ Nil {
+			STD_ERR_BYTE;
+		}
+
+		function : ErrorLine(b : Byte) ~ Nil {
+			STD_ERR_BYTE;
+			'\n'->Print();
+		}
+
+		function : Size(b : Byte[]) ~ Int {
+			LOAD_ARY_SIZE;
+		}
+		
+		function : ToUnicode(b : Byte[]) ~ Char[] {
+			BYTES_TO_UNICODE;
+		}
+		
+		function : native :  Sort(v : Byte[]) ~ Byte[] {
+			size := v->Size();
+			if(size <= 1) {
+				return v;
+			};			
+			array := Byte->New[size];
+			Runtime->Copy(array, 0, v, 0, size);
+			Sort(array, 0, size - 1);
+			
+			return array;
+		}
+		
+		function : native : Sort(array : Byte[], low : Int, high : Int) ~ Nil {
+			i := low; j := high;
+			pivot := array[low + (high-low)/2];
+
+			while(i <= j) {
+				while(array[i] < pivot) {
+					i+=1;
+				};
+	
+				while(array[j] > pivot) {
+					j-=1;
+				};
+
+				if (i <= j) {
+					temp := array[i];
+					array[i] := array[j];
+					array[j] := temp;
+					i+=1; j-=1;
+				};
+			};
+	
+			if(low < j) {
+				Sort(array, low, j);
+			};
+
+			if(i < high) {
+				Sort(array, i, high);
+			};
+		}
+
+		function : Size(b : Byte[,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : Size(b : Byte[,,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+		
+		function : native : ToBinaryString(b : Byte) ~ String {
+			out := String->New();
+			while(b > 0) {
+				v := b % 2;
+				out->Append(v);
+				b /= 2;
+			};
+
+			return out->Reverse();
+		}
+
+		function : native : ToHexString(b : Byte) ~ String {
+			str := String->New();
+			Number->IntToHexString(b->As(Int), str);
+			return str;
+		}
+		
+		function : native : ToHexString(b : Byte[]) ~ String {
+			out := String->New();
+			each(i : b) {
+				str := String->New();
+				Number->IntToHexString(b[i]->As(Int), str);
+				out->Append(str);
+			};
+			
+			return out;
+		}
+		
+		function : native : ToString(b : Byte) ~ String {
+			str := String->New();
+			Number->IntToString(b->As(Int), str);
+			return str;
+		}
+		
+		function : native : ToString(b : Byte[]) ~ String {
+			out := String->New();
+			each(i : b) {
+				ToString(b[i]);
+				out->Append(ToString(b[i]));
+			};
+			
+			return out;
+		}
+	}
+
+	#~~
+	# Character class support
+	~~#	
+	class $Char {
+		function : native : ToLower(c : Char) ~ Char {
+			if(c >= 'A' & c <= 'Z') {
+				return c + 32;
+			};
+
+			return c;
+		}
+
+		function : native : ToUpper(c : Char) ~ Char {
+			if(c >= 'a' & c <= 'z') {
+				return c - 32;
+			};
+
+			return c;
+		}
+
+		function : native : IsDigit(c : Char) ~ Bool {
+			if(c >= '0' & c <= '9') {
+				return true;
+			};
+			
+			return false;
+		}
+
+		function : native : IsChar(c : Char) ~ Bool {
+			if((c >= 'a' & c <= 'z') | (c >= 'A' & c <= 'Z')) {
+				return true;
+			};
+			
+			return false;
+		}
+		
+		function : native : Min(l : Char, r : Char) ~ Char {
+			if(l < r) {
+				return l;
+			};
+
+			return r;
+		}
+
+		function : native : Max(l : Char, r : Char) ~ Char {
+			if(l > r) {
+				return l;
+			};
+
+			return r;
+		}
+
+		function : Print(c : Char) ~ Nil {
+			STD_OUT_CHAR;
+		}
+
+		function : PrintLine(c : Char) ~ Nil {
+			STD_OUT_CHAR;
+			'\n'->Print();
+		}
+		
+		function : native :  Sort(c : Char[]) ~ Char[] {
+			size := c->Size();
+			if(size <= 1) {
+				return c;
+			};			
+			array := Char->New[size];
+			Runtime->Copy(array, 0, c, 0, size);
+			Sort(array, 0, size - 1);
+			
+			return array;
+		}
+		
+		function : native : Sort(array : Char[], low : Int, high : Int) ~ Nil {
+			i := low; j := high;
+			pivot := array[low + (high-low)/2];
+
+			while(i <= j) {
+				while(array[i] < pivot) {
+					i+=1;
+				};
+	
+				while(array[j] > pivot) {
+					j-=1;
+				};
+
+				if (i <= j) {
+					temp := array[i];
+					array[i] := array[j];
+					array[j] := temp;
+					i+=1; j-=1;
+				};
+			};
+	
+			if(low < j) {
+				Sort(array, low, j);
+			};
+
+			if(i < high) {
+				Sort(array, i, high);
+			};
+		}
+
+		function : native :  Print(c : Char[]) ~ Nil {
+			STD_OUT_CHAR_ARY;
+		}
+
+		function : native :  PrintLine(c : Char[]) ~ Nil {
+			STD_OUT_CHAR_ARY;
+			'\n'->Print();
+		}
+
+		function : Error(c : Char) ~ Nil {
+			STD_ERR_CHAR;
+		}
+
+		function : ErrorLine(c : Char) ~ Nil {
+			STD_ERR_CHAR;
+			'\n'->Print();
+		}
+
+		function : native :  Error(c : Char[]) ~ Nil {
+			STD_ERR_CHAR_ARY;
+		}
+
+		function : native :  ErrorLine(c : Char[]) ~ Nil {
+			STD_ERR_CHAR_ARY;
+			'\n'->Print();
+		}
+		
+		function : Size(c : Char[]) ~ Int {
+			LOAD_ARY_SIZE;
+		}
+		
+		function : ToBytes(c : Char[]) ~ Byte[] {		
+			UNICODE_TO_BYTES;
+		}
+		
+		function : Size(c : Char[,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : Size(c : Char[,,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : native : ToString(c : Char) ~ String {
+			string : String := String->New();
+			string->Append(c);
+			
+			return string;
+		}
+	}
+	
+	#~~
+	# Int class support
+	~~#	
+	class $Int {
+		function : native : MaxSize() ~ Int {
+			return 2147483647;
+		}
+		
+		function : native : Factorial(n : Int) ~ Int {
+			result := 1;
+			for (i := 1; i <= n; i += 1;) {
+				result *= i;
+			};
+
+			return result;
+		}
+
+		function : native : Min(l : Int, r : Int) ~ Int {
+			if(l < r) {
+				return l;
+			};
+
+			return r;
+		}
+	
+		function : native : Max(l : Int, r : Int) ~ Int {
+			if(l > r) {
+				return l;
+			};
+
+			return r;
+		}
+
+		function : native : Abs(v : Int) ~ Int {
+			if(v < 0) {
+				return v * -1;
+			};
+
+			return v;
+		}
+
+		function : Print(i : Int) ~ Nil {
+			STD_OUT_INT;
+		}
+
+		function : PrintLine(i : Int) ~ Nil {
+			STD_OUT_INT;
+			'\n'->Print();
+		}
+		
+		function : Error(i : Int) ~ Nil {
+			STD_ERR_INT;
+		}
+
+		function : ErrorLine(i : Int) ~ Nil {
+			STD_ERR_INT;
+			'\n'->Print();
+		}
+
+		function : Size(i : Int[]) ~ Int {
+			LOAD_ARY_SIZE;
+		}
+
+		function : Size(i : Int[,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : Size(i : Int[,,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : native : ToBinaryString(v : Int) ~ String {
+			out := String->New();
+			while(v > 0) {
+				v := v % 2;
+				out->Append(v);
+				v /= 2;
+			};
+
+			return out->Reverse();
+		}
+		
+		function : native : ToHexString(v : Int) ~ String {
+			str := String->New();
+			Number->IntToHexString(v->As(Int), str);
+			return str;
+		}
+		
+		function : native : ToHexString(v : Int[]) ~ String {
+			out := String->New();
+			each(i : v) {
+				str := String->New();
+				Number->IntToHexString(v[i]->As(Int), str);
+				out->Append(str);
+			};
+			
+			return out;
+		}
+		
+		function : native :  Sort(v : Int[]) ~ Int[] {
+			size := v->Size();
+			if(size <= 1) {
+				return v;
+			};			
+			array := Int->New[size];
+			Runtime->Copy(array, 0, v, 0, size);
+			Sort(array, 0, size - 1);
+			
+			return array;
+		}
+		
+		function : native : Sort(array : Int[], low : Int, high : Int) ~ Nil {
+			i := low; j := high;
+			pivot := array[low + (high-low)/2];
+
+			while(i <= j) {
+				while(array[i] < pivot) {
+					i+=1;
+				};
+	
+				while(array[j] > pivot) {
+					j-=1;
+				};
+
+				if (i <= j) {
+					temp := array[i];
+					array[i] := array[j];
+					array[j] := temp;
+					i+=1; j-=1;
+				};
+			};
+	
+			if(low < j) {
+				Sort(array, low, j);
+			};
+
+			if(i < high) {
+				Sort(array, i, high);
+			};
+		}
+		
+		function : native : ToString(v : Int) ~ String {
+			str := String->New();
+			Number->IntToString(v->As(Int), str);
+			return str;
+		}
+		
+		function : native : ToString(v : Int[]) ~ String {
+			out := "[";
+			each(i : v) {
+				str := String->New();
+				Number->IntToString(v[i]->As(Int), str);
+				out->Append(str);
+				if(i + i < v->Size()) {
+					out->Append(',');
+				};
+			};
+			out->Append(']');
+			return out;
+		}
+	}
+
+	#~~
+	# Float class support
+	~~#	
+	class $Float {
+		function : native : Pi() ~ Float {
+			return 3.1415926536;
+		}
+
+		function : native : E() ~ Float {
+			return 2.7182818285;
+		}	
+
+		function : native : ToRadians(v : Float) ~ Float {
+			return v * 3.1415926536 / 180.0;
+		}
+		
+		function : native : ToDegrees(v : Float) ~ Float {
+			return v * 180.0 / 3.1415926536;
+		}
+
+		function : native : Min(l : Float, r : Float) ~ Float {
+			if(l < r) {
+				return l;
+			};
+
+			return r;
+		}
+
+		function : native : Max(l : Float, r : Float) ~ Float {
+			if(l > r) {
+				return l;
+			};
+
+			return r;
+		}
+
+		function : native : Abs(v : Float) ~ Float {
+			if(v < 0) {
+				return v * -1;
+			};
+
+			return v;
+		}
+		
+		# note: sse4 instruction
+		function : Floor(f : Float) ~ Float {
+			FLOR_FLOAT;
+		}
+		
+		# note: sse4 instruction
+		function : Ceiling(f : Float) ~ Float {
+			CEIL_FLOAT;
+		}
+		
+		function : Sin(f : Float) ~ Float {
+			SIN_FLOAT;
+		}
+		
+		function : Cos(f : Float) ~ Float {
+			COS_FLOAT;
+		}
+		
+		function : Tan(f : Float) ~ Float {
+			TAN_FLOAT;
+		}
+
+		function : ArcSin(f : Float) ~ Float {
+			ASIN_FLOAT;
+		}
+		
+		function : ArcCos(f : Float) ~ Float {
+			ACOS_FLOAT;
+		}
+		
+		function : ArcTan(f : Float) ~ Float {
+			ATAN_FLOAT;
+		}
+		
+		function : Log(f : Float) ~ Float {
+			LOG_FLOAT;
+		}
+		
+		function : SquareRoot(f : Float) ~ Float {
+			SQRT_FLOAT;
+		}
+		
+		function : Random() ~ Float {
+			RAND_FLOAT;
+		}
+		
+		function : Power(f : Float, r : Float) ~ Float {
+			POW_FLOAT;
+		}
+
+		function : Print(f : Float) ~ Nil {
+			STD_OUT_FLOAT;
+		}
+
+		function : PrintLine(f : Float) ~ Nil {
+			STD_OUT_FLOAT;
+			'\n'->Print();
+		}
+
+		function : Error(f : Float) ~ Nil {
+			STD_ERR_FLOAT;
+		}
+
+		function : ErrorLine(f : Float) ~ Nil {
+			STD_ERR_FLOAT;
+			'\n'->Print();
+		}
+		
+		function : Size(f : Float[]) ~ Int {
+			LOAD_ARY_SIZE;
+		}
+
+		function : Size(f : Float[,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : Size(f : Float[,,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : native : ToString(f : Float) ~ String {
+			str := String->New();
+			if(f < 0.0) {
+				str->Append('-');
+				f *= -1.0;
+			};
+		
+			zero := 0;
+			remainder := f - f->Floor();
+			if(remainder <> 0.0) {
+				while(remainder < 0.099) {
+					f *= 10.0;
+					remainder := f - f->Floor();
+					zero += 1;
+				};
+			};
+
+			Number->IntToString(f->Floor()->As(Int), str);
+			str->Append('.');
+			for(i := 0; i < zero; i+=1;) {
+				str->Append('0');
+			};
+			Number->IntToString((1001.0 * remainder)->As(Int), str);
+
+			return str;
+		}
+
+		function : native : ToString(v : Float[]) ~ String {
+			out := "[";
+			each(i : v) {
+				out->Append(ToString(v[i]));
+				if(i + i < v->Size()) {
+				  out->Append(',');
+				};
+			};
+			out->Append(']');
+			return out;
+		}
+		
+		function : native :  Sort(v : Float[]) ~ Float[] {
+			size := v->Size();
+			if(size <= 1) {
+				return v;
+			};			
+			array := Float->New[size];
+			Runtime->Copy(array, 0, v, 0, size);
+			Sort(array, 0, size - 1);
+			
+			return array;
+		}
+		
+		function : native : Sort(array : Float[], low : Int, high : Int) ~ Nil {
+			i := low; j := high;
+			pivot := array[low + (high-low)/2];
+
+			while(i <= j) {
+				while(array[i] < pivot) {
+					i+=1;
+				};
+	
+				while(array[j] > pivot) {
+					j-=1;
+				};
+
+				if (i <= j) {
+					temp := array[i];
+					array[i] := array[j];
+					array[j] := temp;
+					i+=1; j-=1;
+				};
+			};
+	
+			if(low < j) {
+				Sort(array, low, j);
+			};
+
+			if(i < high) {
+				Sort(array, i, high);
+			};
+		}
+	}
+
+	#~~
+	# Array class support
+	~~#	
+	class $BaseArray {
+		function : Size(f : System.Base[]) ~ Int {
+			LOAD_ARY_SIZE;
+		}
+
+		function : Size(f : System.Base[,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+
+		function : Size(f : System.Base[,,]) ~ Int[] {
+			LOAD_MULTI_ARY_SIZE;
+		}
+	}
+
+	#~~
+	# Holders
+	~~#
+	class IntHolder implements Compare {
+		@value : Int;
+
+		New() {
+			Parent();
+			@value := 0;
+		}
+
+		New(value : Int) {
+			Parent();
+			@value := value;
+		}
+
+		method : public : Get() ~ Int {
+			return @value;
+		}
+
+		method : public : native : Compare(rhs : Compare) ~ Int {
+			right : IntHolder := rhs->As(IntHolder);
+			if(@value = right->Get()) {
+				return 0;
+			}
+			else if(@value < right->Get()) {
+				return -1;
+			};
+			
+			return 1;
+		}
+
+		method : public : HashID() ~ Int {
+			return @value;
+		}
+	}
+
+	class IntArrayHolder {
+		@values : Int[];
+
+		New(values : Int[]) {
+			Parent();
+			@values := values;
+		}
+
+		method : public : Get() ~ Int[] {
+			return @values;
+		}
+	}
+
+	class FloatHolder implements Compare {
+		@value : Float;
+
+		New() {
+			Parent();
+			@value := 0.0;
+		}
+
+		New(value : Float) {
+			Parent();
+			@value := value;
+		}
+
+		method : public : Get() ~ Float {
+			return @value;
+		}
+
+		method : public : native : Compare(rhs : Compare) ~ Int {
+			right : FloatHolder := rhs->As(FloatHolder);
+			if(@value = right->Get()) {
+				return 0;
+			}
+			else if(@value < right->Get()) {
+				return -1;
+			};
+			
+			return 1;
+		}
+		
+		method : public : HashID() ~ Int {
+			return @value * 10000.0;
+		}
+	}
+	
+	class FloatArrayHolder {
+		@values : Float[];
+
+		New(values : Float[]) {
+			Parent();
+			@values := values;
+		}
+
+		method : public : Get() ~ Float[] {
+			return @values;
+		}
+	}
+
+	class ByteArrayHolder {
+		@values : Byte[];
+
+		New(values : Byte[]) {
+			Parent();
+			@values := values;
+		}
+
+		method : public : Get() ~ Byte[] {
+			return @values;
+		}
+	}
+
+	class CharArrayHolder {
+		@values : Char[];
+
+		New(values : Char[]) {
+			Parent();
+			@values := values;
+		}
+
+		method : public : Get() ~ Char[] {
+			return @values;
+		}
+	}
+
+	#~~
+	# Class identifier
+	~~#	
+	enum ClassID {
+	}
+
+	#~~
+	# Provides useful base class functionality
+	~~#	
+	class Base {
+		New() {
+		}
+
+		method : public : GetClass() ~ Introspection.Class {
+			cls : Class;
+			LOAD_CLS_BY_INST;
+			return cls;
+		}
+		
+		method : public : native : GetClassID() ~ ClassID {
+			LOAD_CLS_INST_ID;
+		}
+
+		method : public : native : GetInstanceID() ~ Int {
+			LOAD_INST_UID;
+		}
+	}
+	
+	#~~
+	# Compare interface
+	~~#	
+	interface Compare {
+		#~~
+		# Compares two objects.
+		# @return 1 if greater, -1 if less, otherwise 0
+		~~#
+		method : virtual : public : Compare(rhs : System.Compare) ~ Int;
+
+		#~~
+		# Returns a unique hash ID for the given class
+		# @return hash ID
+		~~#
+		method : virtual : public : HashID() ~ Int;
+	}
+
+	class BasicCompare implements System.Compare {
+		New() {
+			Parent();
+		}
+
+		method : public : Compare(rhs : System.Compare) ~ Int {
+			if(GetInstanceID() = rhs->GetInstanceID()) {
+				return 0;
+			}
+			else if(GetInstanceID() < rhs->GetInstanceID()) {
+				return 1;
+			};
+
+			return -1;
+		}
+
+		method : public : HashID() ~ Int {
+			return GetInstanceID();
+		}
+	}
+	
+	#~~
+	# Character string class
+	~~#	
+	class String implements System.Compare {
+		@string : Char[];
+		@max : Int;
+		@pos : Int;
+
+		New() {
+			Parent();
+
+			@max := 8;
+			@string := Char->New[@max];
+			@pos := 0;
+		}
+
+		New(string : String) {
+			Parent();
+
+			@max := 8;
+			@string := Char->New[@max];
+			@pos := 0;
+			
+			if(string <> Nil) {
+				Append(string->ToCharArray());
+			};
+		}
+					
+		New(array : Char[]) {
+			Parent();
+
+			if(array->Size() < 8) {
+				@max := 8;
+			}
+			else {
+				@max := array->Size();
+			};
+			
+			@string := Char->New[@max];
+			@pos := 0;
+
+			Append(array);
+		}
+		
+		New(array : Char[], offset : Int, max : Int) {
+			Parent();
+
+			if(array->Size() < 8) {
+				@max := 8;
+			}
+			else {
+				@max := array->Size();
+			};
+
+			@string := Char->New[@max];
+			@pos := 0;
+
+			Append(array, offset, max);
+		}
+		
+		New(array : Byte[]) {
+			Parent();
+
+			if(array->Size() < 8) {
+				@max := 8;
+			}
+			else {
+				@max := array->Size();
+			};
+			
+			@string := Char->New[@max];
+			@pos := 0;
+
+			Append(array);
+		}
+
+		New(array : Byte[], offset : Int, max : Int) {
+			Parent();
+
+			if(array->Size() < 8) {
+				@max := 8;
+			}
+			else {
+				@max := array->Size();
+			};
+
+			@string := Char->New[@max];
+			@pos := 0;
+
+			Append(array, offset, max);
+		}
+
+		method : public : native : ToCharArray() ~ Char[] {
+			array : Char[] := Char->New[@pos];
+			for(i : Int := 0; i < @pos; i += 1;) {
+				array[i] := @string[i];
+			};
+
+			return array;
+		}
+		
+		method : public : native : ToByteArray() ~ Byte[] {
+			array : Byte[] := Byte->New[@pos];
+			for(i : Int := 0; i < @pos; i += 1;) {
+				array[i] := @string[i];
+			};
+
+			return array;
+		}
+		
+		method : public : native : Append(b : Bool) ~ Nil {
+			if(b) {
+				Append("true"->ToCharArray());
+			}
+			else {
+				Append("false"->ToCharArray());
+			};
+		}
+
+		method : public : native : Append(i : Int) ~ Nil {
+			Append(i->ToString()->ToCharArray());
+		}
+
+		method : public : native : Append(f : Float) ~ Nil {
+			Append(f->ToString()->ToCharArray());
+		}
+
+		method : public : native : Append(str : String) ~ Nil {
+			Append(str->ToCharArray());
+		}
+		
+		method : public : native : Append(array : Char[]) ~ Nil {
+			if(@pos + array->Size() >= @max) {
+				# expand string
+				@max := (@max + array->Size()) * 2;
+				tmp : Char[] := Char->New[@max];
+				# copy elements				
+				Runtime->Copy(tmp, 0, @string, 0, @string->Size());
+				@string := tmp;
+			};
+			
+			max := array->Size();
+			for(i : Int := 0; i < max & array[i] <> '\0'; i += 1;) {
+				@string[@pos] := array[i];
+				@pos += 1;
+			};
+		}
+
+		method : public : native : Append(array : Char[], offset : Int, max : Int) ~ Nil {
+			if(offset < 0) {
+				return;
+			};
+			
+			if(@pos + max >= @max) {
+				# expand string
+				@max := (@max + max) * 2;
+				tmp : Char[] := Char->New[@max];
+				# copy elements
+				Runtime->Copy(tmp, 0, @string, 0, @string->Size());
+				@string := tmp;
+			};
+
+			end := offset + max;
+			for(i : Int := offset; i < end & array[i] <> '\0'; i += 1;) {
+				@string[@pos] := array[i];
+				@pos += 1;
+			};
+		}
+		
+		method : public : native : Append(array : Byte[]) ~ Nil {
+			if(@pos + array->Size() >= @max) {
+				# expand string
+				@max := (@max + array->Size()) * 2;
+				tmp : Char[] := Char->New[@max];
+				# copy elements
+				Runtime->Copy(tmp, 0, @string, 0, @string->Size());
+				@string := tmp;
+			};
+			
+			max := array->Size();
+			for(i : Int := 0; i < max & array[i] <> '\0'; i += 1;) {
+				@string[@pos] := array[i];
+				@pos += 1;
+			};
+		}
+
+		method : public : native : Append(array : Byte[], offset : Int, max : Int) ~ Nil {
+			if(offset < 0) {
+				return;
+			};
+			
+			if(@pos + max >= @max) {
+				# expand string
+				@max := (@max + max) * 2;
+				tmp : Char[] := Char->New[@max];
+				# copy elements
+				Runtime->Copy(tmp, 0, @string, 0, @string->Size());
+				@string := tmp;
+			};
+
+			end := offset + max;
+			for(i : Int := offset; i < end & array[i] <> '\0'; i += 1;) {
+				@string[@pos] := array[i];
+				@pos += 1;
+			};
+		}
+
+		method : public : native : Append(c : Char) ~ Nil {
+			if(@pos >= @max) {
+				# expand string
+				@max := @max * 2;
+				tmp : Char[] := Char->New[@max];
+				# copy elements
+				Runtime->Copy(tmp, 0, @string, 0, @string->Size());
+				@string := tmp;
+			};
+
+			@string[@pos] := c;
+			@pos := @pos + 1;
+		}
+		
+		method : public : native : Append(c : Byte) ~ Nil {
+			if(@pos >= @max) {
+				# expand string
+				@max := @max * 2;
+				tmp : Char[] := Char->New[@max];
+				# copy elements
+				Runtime->Copy(tmp, 0, @string, 0, @string->Size());
+				@string := tmp;
+			};
+
+			@string[@pos] := c;
+			@pos := @pos + 1;
+		}
+		
+		method : public : Find(char : Char) ~ Int {
+			return Find(0, char);
+		}
+		
+		method : public : native : Find(offset : Int, char : Char) ~ Int {
+			if(offset < @pos & offset > -1) {
+				for(i := offset; i < @pos; i += 1;) {
+					if(@string[i] = char) {
+						return i;
+					};
+				};
+			};
+
+			return -1;
+		}
+		
+		method : public : FindLast(char : Char) ~ Int {
+			return FindLast(0, char);
+		}
+		
+		method : public : native : FindLast(offset : Int, char : Char) ~ Int {
+			if(offset < @pos & offset > -1) {
+				for(i := @pos - 1; i > -1; i -= 1;) {
+					if(@string[i] = char) {
+						return i;
+					};
+				};
+			};
+
+			return -1;
+		}
+
+		method : public : Find(find : String) ~ Int {
+			return Find(find, 0);
+		}
+
+		method : public : native : Find(find : String, offset : Int) ~ Int {
+			size := find->Size();
+			if(size > 0 & offset < size) {
+				found_index := Find(find->Get(offset));
+				while(found_index > -1) {
+					j := found_index;
+					match := true;
+					i : Int;
+					for(i := 0; match & i < find->Size() & j < @pos; i += 1;) {
+						if(find->Get(i) <> @string[j]) {
+							match := false;
+						};
+						j += 1;
+					};
+
+					if(match & i = find->Size()) {
+						return found_index;
+					};
+					
+					found_index := Find(found_index + 1, find->Get(0));
+				};
+
+				return -1;
+			};
+
+			return -1;
+		}
+		
+		method : public : native : ReplaceAll(find : String, replace : String) ~ String {
+			last := @self;
+			result := last->Replace(find, replace);
+			while(result <> last) {
+				last := result;
+				result := last->Replace(find, replace);
+			};
+			
+			return result;
+		}
+		
+		method : public : native : Replace(find : String, replace : String) ~ String {
+			index := Find(find);
+			if(index < 0) {
+				return @self;
+			};
+			
+			begin := SubString(0, index);
+			index += find->Size();
+			
+			length :=   Size() - index;
+			end := SubString(index, length);
+			if(end = Nil) {
+				return @self;
+			};
+			
+			new_string := String->New(begin);
+			new_string->Append(replace);
+			new_string->Append(end);
+			
+			return new_string;
+		}
+		
+		method : public : native : IsEmpty() ~ Bool {
+			return @pos = 0 ? true : false; 			
+		}
+
+		method : public : native : Size() ~ Int {
+			return @pos;			
+		}
+  
+		method : public : native : Get(index : Int) ~ Char {
+			if(index < @pos) {
+				return @string[index];
+			};
+
+			return '\0';
+		}
+
+		method : public : native : Pop() ~ Char {
+			if(@pos > 0) {
+				@pos -= 1;
+				c := @string[@pos];
+				@string[@pos] := '\0';
+				return c;
+			};
+
+			return '\0';
+		}
+		
+		method : public : native : ToInt() ~ Int {
+			if(@pos > 1 & @string[0] = '0' & @string[1] = 'x') {
+				end := 1;			
+				mag : Int := 1;
+				val : Int := 0;
+				for(i : Int := @pos - 1; i > end; i := i - 1;) {
+					pos_val : Int := @string[i];
+					if(pos_val >= '0' & pos_val <= '9') {
+						pos_val := pos_val - 48;
+					}
+					else if(pos_val >= 'A' & pos_val <= 'F') {
+						pos_val := pos_val - 55;
+					}
+					else if(pos_val >= 'a' & pos_val <= 'f') {
+						pos_val := pos_val - 87;
+					}
+					else {
+						return 0;
+					};
+					
+					if(mag = 1) {
+						val := pos_val;
+					}
+					else {
+						val := val + pos_val * mag;	
+					};
+					# update
+					mag := mag * 16;
+				};
+				
+				return val;
+			}
+			else if(@string->Size() > 0) {
+				is_neg : Bool := false;
+				if(@string[0] = '-') {
+					is_neg := true;
+				};
+
+				end : Int;
+				if(is_neg) {
+					end := 0;
+				}
+				else {
+					end := -1;
+				};
+
+				val : Int := 0;
+				mag : Int := 1;
+				for(i : Int := @pos - 1; i > end; i := i - 1;) {
+					pos_val : Int := @string[i] - 48;
+					if(pos_val < 0 | pos_val > 9) {
+						return 0;
+					};
+
+					if(mag = 1) {
+						val := pos_val;
+					}
+					else {
+						val := val + pos_val * mag;	
+					};
+					# update
+					mag := mag * 10;
+				};
+
+				if(is_neg) {
+					return val * -1;
+				}
+				else {
+					return val;
+				};
+			};
+
+			return 0;
+		}
+
+		method : public : native : ToFloat() ~ Float {
+			if(@string->Size() > 0) {
+				val : Float := 0;
+				is_neg : Bool := false;
+				if(@string[0] = '-') {
+					is_neg := true;
+				};
+
+				end : Int;
+				if(is_neg) {
+					end := 0.0;
+				}
+				else {
+					end := -1.0;
+				};
+
+				# find decimal point
+				dec_index : Int := -1;
+				i : Int := 0;
+				while(dec_index = -1 & i < @pos) {
+					if(@string[i] = '.') {
+						dec_index := i;
+					};
+					i += 1;
+				};
+
+				# calculate decimal number 
+				if(dec_index <> -1) {
+					mag : Float := .1;
+					dec_index := dec_index + 1;
+					
+					for(j : Int := dec_index; j < @pos; j := j + 1;) {
+						pos_val : Int := @string[j] - 48;
+						if(pos_val < 0 | pos_val > 9) {
+							return 0;
+						};
+
+						if(mag = 1) {
+							val := pos_val;
+						}
+						else {
+							val := val + pos_val * mag;	
+						};
+						# update
+						mag := mag * .1;
+					};
+					
+					dec_index := dec_index - 1;
+					mag := 1.0;
+					for(j : Int := dec_index - 1; j > end; j := j - 1;) {
+						pos_val : Int := @string[j] - 48;
+						if(pos_val < 0 | pos_val > 9) {
+							return 0;
+						};
+
+						if(mag = 1) {
+							val := val + pos_val;
+						}
+						else {
+							val := val + pos_val * mag;	
+						};
+						# update
+						mag := mag * 10.0;
+					};
+				}
+				# calculate non-decimal number 
+				else {
+					mag : Int := 1;
+					for(j : Int := @pos - 1; j > end; j := j - 1;) {
+						pos_val : Int := @string[j] - 48;
+						if(pos_val < 0 | pos_val > 9) {
+							return 0.0;
+						};
+
+						if(mag = 1) {
+							val := pos_val;
+						}
+						else {
+							val := val + pos_val * mag;	
+						};
+						# update
+						mag := mag * 10.0;
+					};
+				};
+
+				if(is_neg) {
+					return val * -1.0;
+				}
+				else {
+					return val;
+				};
+			};
+
+			return 0.0;
+		}
+
+		method : public : native : StartsWith(c : Char) ~ Bool {
+			sc : Char := Get(0);
+			return sc <> '\0' & c = sc;
+		}
+
+		method : public : native : StartsWith(s : String) ~ Bool {
+			if(s->Size() <= @pos) {
+				for(i := 0; i < s->Size(); i += 1;) {
+					if(s->Get(i) <> @string[i]) {
+						return false;
+					};
+				};
+
+				return true;
+			};
+
+			return false;
+		}
+
+		method : public : native : EndsWith(s : String) ~ Bool {
+			if(s->Size() <= @pos) {
+				i := s->Size() - 1;
+				j := @pos - 1;
+				while(i > -1) {
+					if(s->Get(i) <> @string[j]) {
+						return false;
+					};
+					i := i - 1;
+					j := j - 1;
+				};
+
+				return true;
+			};
+
+			return false;
+		}
+		
+		method : public : native : Reverse() ~ String {
+			tmp : Char[] := Char->New[@max];
+			i := 0; j := @pos - 1;
+			while(j > -1) {
+				tmp[i] := @string[j];
+				j -= 1;	i += 1;
+			};
+			
+			return String->New(tmp);
+		}
+		
+		method : public : native : Trim() ~ String {
+			if(@pos = 0) {
+				return "";
+			};
+
+			i := 0;
+			c := @string[i];
+			while(i < @pos & (c = ' ' | c = '\t' | c = '\n' | c = '\n')) {
+				i += 1;
+				c := @string[i];
+			};	
+
+			j := @pos - 1;
+			if(j < 0) {
+				return "";
+			};
+
+			c := @string[j];
+			while(j > -1 & (c = ' ' | c = '\t' | c = '\n' | c = '\n')) {
+				j -= 1;
+				c := @string[i];
+			};	
+
+			tmp := String->New();
+			while(i <= j) {
+				tmp->Append(@string[i]);
+				i += 1;
+			};
+
+			return tmp;
+		}
+		
+		method : public : native : Split(delim : String) ~ String[] {
+			if(delim->Size() = 0 | @pos = 0) {
+				return Nil;
+			};
+			
+			# first-pass count tokens
+			count := 0;
+			start_index := 0;
+			found_index := -1;
+			delim_index := 0;
+			
+			for(i : Int := 0; i < @pos; i += 1;) {
+				if(found_index = -1 & delim->Get(0) = @string[i]) {
+					found_index := i;
+				};
+				
+				if(found_index > -1) {
+					if(delim_index < delim->Size() & delim->Get(delim_index) = @string[i]) {
+						delim_index += 1;
+					}
+					else if(delim_index = delim->Size()) {
+						count += 1;
+						start_index := found_index + delim->Size();
+						found_index := -1;
+						delim_index := 0;
+					}
+					else {
+						found_index := -1;
+						delim_index := 0;
+					};
+				};
+			};
+			
+			if(start_index <> 0) {
+				count += 1;
+				SubString(start_index, @pos - start_index);
+			};
+			
+			# second-pass parse tokens
+			parsed_strings : String[] := String->New[count];
+			count := 0;
+			start_index := 0;
+			found_index := -1;
+			delim_index := 0;
+			
+			for(i : Int := 0; i < @pos; i += 1;) {
+				if(found_index = -1 & delim->Get(0) = @string[i]) {
+					found_index := i;
+				};
+				
+				if(found_index > -1) {
+					if(delim_index < delim->Size() & delim->Get(delim_index) = @string[i]) {
+						delim_index += 1;
+					}
+					else if(delim_index = delim->Size()) {
+#						parsed_strings[count] := SubString(start_index, found_index + delim->Size() - start_index);
+						parsed_strings[count] := SubString(start_index, found_index - start_index);
+						count += 1;
+						
+						start_index := found_index + delim->Size();
+						found_index := -1;
+						delim_index := 0;
+					}
+					else {
+						found_index := -1;
+						delim_index := 0;
+					};
+				};
+			};
+			
+			if(start_index <> 0) {
+				parsed_strings[count] := SubString(start_index, @pos - start_index);
+				count += 1;
+			};
+			
+			return parsed_strings;
+		}
+		
+		method : public : native : ToUpper() ~ String {
+			array : Char[] := Char->New[@pos];
+			for(i : Int := 0; i < @pos; i += 1;) {
+				c := @string[i];
+				if(c > 96 & c < 123) {
+					c := c - 32;
+				};
+				array[i] := c;
+			};
+			
+			return String->New(array);
+		}
+		
+		method : public : native : ToLower() ~ String {
+			array : Char[] := Char->New[@pos];
+			for(i : Int := 0; i < @pos; i += 1;) {
+				c := @string[i];
+				if(c > 64 & c < 91) {
+					c := c + 32;
+				};
+				array[i] := c;
+			};
+			
+			return String->New(array);
+		}
+
+		method : public : SubString(length : Int) ~ String {
+			return SubString(0, length);
+		}
+
+		method : public : native : SubString(offset : Int, length : Int) ~ String {
+			if(offset < 0 | offset > @pos) {
+				return Nil;
+			};
+
+			end : Int := length + offset;
+			if(end < 0 | end > @pos) {
+				return Nil;
+			};
+
+			array : Char[] := Char->New[length];
+			for(i : Int := 0; i < length; i += 1;) {
+				array[i] := @string[i + offset];
+			};
+
+			return String->New(array);
+		}
+	
+		method : public : Equals(rhs : String) ~ Bool {
+			return Compare(rhs->As(System.Compare)) = 0;
+		}
+
+		method : public : native : HashID() ~ Int {
+			hash := 0;
+			for(i := 0; i < @pos; i += 1;) {
+				c := @string[i];
+				hash += c * 101;
+			};
+			
+			return hash;
+		}
+
+		method : public : Compare(rhs : System.Compare) ~ Int {
+			# check class type
+			if(GetClassID() = rhs->GetClassID()) {
+				right_string : String := rhs->As(String);
+				
+				# check each character
+				for(i : Int := 0; i < @pos; i += 1;) {
+					left : Char := @string[i];
+					right : Char := right_string->Get(i);
+					if(left > right) {
+						return 1;
+					}
+					else if(left < right) {
+						return -1;
+					};
+				};
+				
+				# check length
+				if(@pos > right_string->Size()) {
+					return 1;
+				};
+				
+				if(@pos < right_string->Size()) {
+					return -1;
+				};
+				
+				# equal
+				return 0;
+			};
+			
+			return -1;
+		}
+
+		method : public : native : Print() ~ Nil {
+			@string->Print();
+		}
+
+		method : public : native : PrintLine() ~ Nil {
+			@string->PrintLine();
+		}
+
+		method : public : native : Error() ~ Nil {
+			@string->Error();
+		}
+
+		method : public : native : ErrorLine() ~ Nil {
+			@string->ErrorLine();
+		}
+	}
+	
+	#~~
+	# Runtime system class
+	~~#	
+	class Runtime {
+		function : Exit(code : Int) ~ Nil {
+			EXIT;
+		}
+		
+		function : GetPlatform() ~ String {
+			PLTFRM;
+		}
+		
+		function : GetProperty(key : String) ~ String {
+			GET_SYS_PROP;
+		}
+		
+		function : SetProperty(key : String, value : String) ~ Nil {
+			SET_SYS_PROP;
+		}
+		
+		function : GetTime() ~ Time.Date {
+			return Time.Date->New();
+		}
+		
+		function : Copy(dest : Byte[], dest_offset : Int, src : Byte[], src_offset : Int, len : Int) ~ Bool {
+			CPY_BYTE_ARY;
+		}
+		
+		function : Copy(dest : Char[], dest_offset : Int, src : Char[], src_offset : Int, len : Int) ~ Bool {
+			CPY_CHAR_ARY;
+		}
+		
+		function : Copy(dest : Int[], dest_offset : Int, src : Int[], src_offset : Int, len : Int) ~ Bool {
+			CPY_INT_ARY;
+		}
+		
+		function : Copy(dest : Base[], dest_offset : Int, src : Base[], src_offset : Int, len : Int) ~ Bool {
+			CPY_INT_ARY;
+		}
+		
+		function : Copy(dest : Compare[], dest_offset : Int, src : Compare[], src_offset : Int, len : Int) ~ Bool {
+			CPY_INT_ARY;
+		}
+		
+		function : Copy(dest : Float[], dest_offset : Int, src : Float[], src_offset : Int, len : Int) ~ Bool {
+			CPY_FLOAT_ARY;
+		}
+	}
+}
+
+#------------ API ------------
+bundle System.API {	
+  class DllProxy {
+		@name : String;
+		@ptr : Int;
+		
+		New(name : String) {
+			Parent();
+
+			@name := name;
+			DLL_LOAD;
+		}
+		
+		method : public : IsLoaded() ~ Bool {
+			return @ptr <> 0;
+		}
+		
+		method : public : Unload() ~ Nil {
+			DLL_UNLOAD;
+		}
+		
+		method : public : CallFunction(name : String, args : Base[]) ~ Nil {
+			DLL_FUNC_CALL;
+		}
+	}
+}
+
+#------------ Time ------------
+bundle System.Time {	
+  #~~
+	# Date class
+	~~#	
+	class Date {
+		@day : Int;
+		@month : Int;
+		@year : Int;
+		@hours : Int;
+		@mins : Int;
+		@secs : Int;
+		@is_savings : Bool;
+		@week_day : Int;
+		@is_gmt : Bool;
+		
+		New() {
+			Parent();
+			SYS_TIME;
+		}
+
+		New(gmt : Bool) {
+			Parent();
+			if(gmt) {
+				GMT_TIME;
+			}
+			else {
+				SYS_TIME;
+			};
+		}
+		
+		New(day : Int, month : Int, year : Int, gmt : Bool) {
+			Parent();
+			DATE_TIME_SET_1;
+		}
+		
+		New(day : Int, month : Int, year : Int, hours : Int, mins : Int, secs : Int, gmt : Bool) {
+			Parent();
+			DATE_TIME_SET_2;
+		}
+
+#~ TODO
+		New(date : String, format : String) {
+			Parent();
+			DATE_TIME_SET_3;
+		}
+~#
+
+		method : public : GetDay() ~ Int {
+			return @day;
+		}
+
+		method : public : GetDayName() ~ String {
+			days_of_week := ["Sunday", "Monday", "Tuesday", "Wednesday","Thursday","Friday","Saturday"];
+			if(@week_day > -1 & @week_day < days_of_week->Size()) {
+				return days_of_week[@week_day];
+			};
+
+			return "";
+		}
+		
+		method : public : GetMonth() ~ Int {
+			return @month;
+		}
+		
+		method : public : GetMonthName() ~ String {
+			days_of_month := ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+			if(@month > -1 & @month - 1 < days_of_month->Size()) {
+				return days_of_month[@month - 1];
+			};
+
+			return "";
+		}
+
+		method : public : GetYear() ~ Int {
+			return @year;
+		}
+		
+		method : public : GetHours() ~ Int {
+			return @hours;
+		}
+		
+		method : public : GetMinutes() ~ Int {
+			return @mins;
+		}
+		
+		method : public : GetSeconds() ~ Int {
+			return @secs;
+		}
+
+		method : public : AddDays(value : Int) ~ Nil {
+			DATE_TIME_ADD_DAYS;
+		}
+
+		method : public : AddHours(value : Int) ~ Nil {
+			DATE_TIME_ADD_HOURS;
+		}
+   
+		method : public : AddMinutes(value : Int) ~ Nil {
+			DATE_TIME_ADD_MINS;
+		}
+
+		method : public : AddSeconds(value : Int) ~ Nil {
+			DATE_TIME_ADD_SECS;
+		}
+
+		method : public : IsSavingsTime() ~ Bool {
+			return @is_savings;
+		}
+
+		method : public : ToString() ~ String {
+			out := String->New();
+
+			out->Append(GetDayName());
+			out->Append(", ");
+			out->Append(GetMonthName());
+			out->Append(" ");
+			out->Append(@day);
+			out->Append(", ");
+			out->Append(@year);
+			out->Append(", ");
+			out->Append(@hours);
+			out->Append(":");
+			if(@mins < 10) {
+				out->Append('0');
+			};
+			out->Append(@mins);
+			out->Append(":");
+			out->Append(@secs);
+
+			return out;
+		}
+	}
+	
+	#~~
+	# Timer class
+	~~#	
+	class Timer {
+		@elapsed : Int;
+		
+		New() {
+			Parent();
+		}
+		
+		method : public : Start() ~ Nil {
+			TIMER_START;
+		}
+		
+		method : public : End() ~ Nil {
+			TIMER_END;
+		}
+		
+		method : public : GetElapsedTime() ~ Int {
+			return @elapsed;
+		}
+	}
+}
+
+#------------ Concurrency ------------
+bundle System.Concurrency {	
+	#~~
+	# System thread class
+	~~#	
+	class Thread {
+		@id : Int;
+		@name : String;
+		@param : System.Base;
+		
+		New(name : String) {
+			Parent();
+			@name := name;
+		}
+		
+		method : public : Execute(param : System.Base) ~ Nil {
+			@param := param;
+			ASYNC_MTHD_CALL;
+		}
+
+		#~~
+		# Sleeps worker thread
+		~~#
+		function : Sleep(t : Int) ~ Nil {
+			THREAD_SLEEP;
+		}
+		
+		#~~
+		# Joins a thread
+		~~#
+		method : public : Join() ~ Nil {
+			THREAD_JOIN;
+		}
+		
+		#~~
+		# Returns the name
+		~~#
+		method : public : GetName() ~ String {
+			return @name;
+		}
+		
+		#~~
+		# Returns the run ID
+		~~#
+		method : public : GetExecuteID() ~ Int {
+			return @id;
+		}
+		
+		#~~
+		# Method to execute in new worker thread
+		~~#
+		method : virtual : public : Run(param : System.Base) ~ Nil;
+	}	
+	
+	#~~
+	# System thread class
+	~~#	
+	class ThreadMutex {
+		@name : String;
+		# hack to hold a mutext struct.  Largest struct 
+		# is 64-bytes for x64 POSIX
+		@m0 : Int;
+		@m1 : Int;
+		@m2 : Int;
+		@m3 : Int;
+		@m4 : Int;
+		@m5 : Int;
+		@m6 : Int;
+		@m7 : Int;
+		
+		New(name : String) {
+			Parent();
+			@name := name;
+			THREAD_MUTEX;
+		}
+		
+		#~~
+		# Returns the name
+		~~#
+		method : public : GetName() ~ String {
+			return @name;
+		}
+	}
+}
+
+#------------ I/O ------------
+bundle System.IO {
+	interface InputStream {
+		method : virtual : public : ReadByte() ~ Byte;
+		method : virtual : public : ReadBuffer(offset : Int, num : Int, buffer : Char[]) ~ Int;
+		method : virtual : ReadString(buffer : Char[]) ~ Nil;
+	}
+	
+	interface OutputStream {
+		method : virtual : public : WriteByte(b : Int) ~ Bool;
+		method : virtual : public : WriteBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Int;
+		method : virtual : public : WriteString(str : System.String) ~ Nil;
+		method : virtual : public : Flush() ~ Nil;
+	}
+	
+ 	#~~
+	# Console class
+	~~#
+	class Console {
+		function : ReadString() ~ System.String {
+			console := IO.ConsoleIO->Instance();
+			return console->ReadString();
+		}
+
+		function : public : WriteBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Bool {
+			STD_OUT_BYTE_ARY_LEN;	
+		}
+
+		function : public : WriteBuffer(offset : Int, num : Int, buffer : Char[]) ~ Bool {
+			STD_OUT_CHAR_ARY_LEN;
+		}
+
+		function : public : WriteErrorBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Bool {
+			STD_ERR_BYTE_ARY;	
+		}
+
+		function : public : WriteErrorBuffer(offset : Int, num : Int, buffer : Char[]) ~ Bool {
+			STD_ERR_BYTE_ARY;
+		}
+		
+		function : Print(b : Bool) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Print(b);
+		}
+		
+		function : PrintLine(b : Bool) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->PrintLine(b);
+		}
+	
+		function : Print(b : Byte) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Print(b);
+		}
+	
+		function : PrintLine(b : Byte) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->PrintLine(b);
+		}
+		
+		function : Print(c : Char) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Print(c);
+		}
+	
+		function : PrintLine(c : Char) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->PrintLine(c);
+		}
+	
+		function : Print(i : Int) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Print(i);
+		}
+	
+		function : PrintLine(i : Int) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->PrintLine(i);
+		}
+		
+		function : Print(f : Float) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Print(f);
+		}
+	
+		function : PrintLine(f : Float) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->PrintLine(f);
+		}
+	
+		function : Print(cc : Char[]) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Print(cc);
+		}
+	
+		function : PrintLine(cc : Char[]) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->PrintLine(cc);
+		}
+		
+		function : Print(s : System.String) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Print(s);
+		}
+	
+		function : PrintLine(s : System.String) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->PrintLine(s);
+		}
+	
+		function : PrintLine() ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->PrintLine();
+		}
+
+		function : Error(b : Bool) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Error(b);
+		}
+		
+		function : ErrorLine(b : Bool) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->ErrorLine(b);
+		}
+	
+		function : Error(b : Byte) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Error(b);
+		}
+	
+		function : ErrorLine(b : Byte) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->ErrorLine(b);
+		}
+		
+		function : Error(c : Char) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Error(c);
+		}
+	
+		function : ErrorLine(c : Char) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->ErrorLine(c);
+		}
+	
+		function : Error(i : Int) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Error(i);
+		}
+	
+		function : ErrorLine(i : Int) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->ErrorLine(i);
+		}
+		
+		function : Error(f : Float) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Error(f);
+		}
+	
+		function : ErrorLine(f : Float) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->ErrorLine(f);
+		}
+	
+		function : Error(cc : Char[]) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Error(cc);
+		}
+	
+		function : ErrorLine(cc : Char[]) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->ErrorLine(cc);
+		}
+		
+		function : Error(s : System.String) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->Error(s);
+		}
+	
+		function : ErrorLine(s : System.String) ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->ErrorLine(s);
+		}
+	
+		function : ErrorLine() ~ ConsoleIO {
+			return IO.ConsoleIO->Instance()->ErrorLine();
+		}
+	}
+ 	
+ 	#~~
+	# Support for Console class
+	~~#
+ 	class ConsoleIO {
+		@console : static : ConsoleIO;
+
+		New : private () {
+			Parent();
+		}
+
+		function : Instance() ~ ConsoleIO {
+			if(@console <> Nil) {
+				@console := ConsoleIO->New();
+			};
+
+			return @console;
+		}
+
+		method : public : ReadString() ~ System.String {
+			buffer : Char[] := Char->New[1024];
+			ReadString(buffer);
+			return System.String->New(buffer);
+		}
+		
+		method : public : Print(b : Bool) ~ ConsoleIO {
+			b->Print();
+			return @console;
+		}
+		
+		method : public : PrintLine(b : Bool) ~ ConsoleIO {
+			b->PrintLine();
+			return @console;
+		}
+
+		method : ReadString(buffer : Char[]) ~ Nil {
+			STD_IN_STRING;
+		}
+		
+		method : public : Print(b : Byte) ~ ConsoleIO {
+			b->Print();
+			return @console;
+		}
+
+		method : public : PrintLine(b : Byte) ~ ConsoleIO {
+			b->PrintLine();
+			return @console;
+		}
+		
+		method : public : Print(c : Char) ~ ConsoleIO {
+			c->Print();
+			return @console;
+		}
+
+		method : public : PrintLine(c : Char) ~ ConsoleIO {
+			c->PrintLine();
+			return @console;
+		}
+
+		method : public : Print(i : Int) ~ ConsoleIO {
+			i->Print();
+			return @console;
+		}
+
+		method : public : PrintLine(i : Int) ~ ConsoleIO {
+			i->PrintLine();
+			return @console;
+		}
+		
+		method : public : Print(f : Float) ~ ConsoleIO {
+			f->Print();
+			return @console;
+		}
+
+		method : public : PrintLine(f : Float) ~ ConsoleIO {
+			f->PrintLine();
+			return @console;
+		}
+
+		method : public : Print(cc : Char[]) ~ ConsoleIO {
+			cc->Print();
+			return @console;
+		}
+
+		method : public : PrintLine(cc : Char[]) ~ ConsoleIO {
+			cc->PrintLine();
+			return @console;
+		}
+		
+		method : public : Print(s : System.String) ~ ConsoleIO {
+			s->Print();
+			return @console;
+		}
+
+		method : public : PrintLine(s : System.String) ~ ConsoleIO {
+			s->PrintLine();
+			return @console;
+		}
+
+		method : public : PrintLine() ~ ConsoleIO {
+			"\r\n"->Print();
+			return @console;
+		}
+		
+		method : public : Error(b : Bool) ~ ConsoleIO {
+			b->Error();
+			return @console;
+		}
+		
+		method : public : ErrorLine(b : Bool) ~ ConsoleIO {
+			b->ErrorLine();
+			return @console;
+		}
+
+		method : public : Error(b : Byte) ~ ConsoleIO {
+			b->Error();
+			return @console;
+		}
+
+		method : public : ErrorLine(b : Byte) ~ ConsoleIO {
+			b->ErrorLine();
+			return @console;
+		}
+		
+		method : public : Error(c : Char) ~ ConsoleIO {
+			c->Error();
+			return @console;
+		}
+
+		method : public : ErrorLine(c : Char) ~ ConsoleIO {
+			c->ErrorLine();
+			return @console;
+		}
+
+		method : public : Error(i : Int) ~ ConsoleIO {
+			i->Error();
+			return @console;
+		}
+
+		method : public : ErrorLine(i : Int) ~ ConsoleIO {
+			i->ErrorLine();
+			return @console;
+		}
+		
+		method : public : Error(f : Float) ~ ConsoleIO {
+			f->Error();
+			return @console;
+		}
+
+		method : public : ErrorLine(f : Float) ~ ConsoleIO {
+			f->ErrorLine();
+			return @console;
+		}
+
+		method : public : Error(cc : Char[]) ~ ConsoleIO {
+			cc->Error();
+			return @console;
+		}
+
+		method : public : ErrorLine(cc : Char[]) ~ ConsoleIO {
+			cc->ErrorLine();
+			return @console;
+		}
+		
+		method : public : Error(s : System.String) ~ ConsoleIO {
+			s->Error();
+			return @console;
+		}
+
+		method : public : ErrorLine(s : System.String) ~ ConsoleIO {
+			s->ErrorLine();
+			return @console;
+		}
+
+		method : public : ErrorLine() ~ ConsoleIO {
+			'\n'->ErrorLine();
+			return @console;
+		}
+	}
+	
+	class Serializer  {
+		@buffer : Byte[];
+		@pos : Int;
+
+		New() {
+			Parent();
+			@buffer := Byte->New[16];
+			@pos := 0;
+		}
+
+		method : public : Write(b : Bool) ~ Nil {
+			SERL_INT;
+		}
+
+		method : public : Write(c : Char) ~ Nil {
+			SERL_CHAR;
+		}
+		
+		method : public : Write(i : Int) ~ Nil {
+			SERL_INT;
+		}
+		
+		method : public : Write(f : Float) ~ Nil {
+			SERL_FLOAT;
+		}
+		
+		method : public : Write(o : Base) ~ Nil {
+			SERL_OBJ_INST;
+		}
+
+		method : public : Write(b : Bool[]) ~ Nil {
+			SERL_INT_ARY;
+		}
+
+		method : public : Write(b : Byte[]) ~ Nil {
+			SERL_BYTE_ARY;
+		}
+
+		method : public : Write(c : Char[]) ~ Nil {
+			SERL_CHAR_ARY;
+		}
+
+		method : public : Write(i : Int[]) ~ Nil {
+			SERL_INT_ARY;
+		}
+		
+		method : public : Write(f : Float[]) ~ Nil {
+			SERL_FLOAT_ARY;
+		}
+		
+		method : public : Serialize() ~ Byte[] {
+			temp := Byte->New[@pos];
+			for(i := 0; i < @pos; i += 1;) {
+				temp[i] := @buffer[i];
+			};		
+
+			return temp;
+		}
+	}
+	
+	class Deserializer  {
+		@buffer : Byte[];
+		@pos : Int;
+		
+		New(buffer : Byte[]) {
+			Parent();
+			@buffer := buffer;
+			@pos := 0;
+		}
+
+		method : public : ReadBool() ~ Bool {
+			DESERL_INT;
+		}
+
+		method : public : ReadChar() ~ Char {
+			DESERL_CHAR;
+		}
+		
+		method : public : ReadInt() ~ Int {
+			DESERL_INT;
+		}
+		
+		method : public : ReadFloat() ~ Float {
+			DESERL_FLOAT;
+		}
+		
+		method : public : ReadObject() ~ Base {
+			DESERL_OBJ_INST;
+		}
+
+		method : public : ReadBoolArray() ~ Bool[] {
+			DESERL_INT_ARY;
+		}
+
+		method : public : ReadByteArray() ~ Byte[] {
+			DESERL_BYTE_ARY;
+		}
+
+		method : public : ReadCharArray() ~ Char[] {
+			DESERL_CHAR_ARY;
+		}
+
+		method : public : ReadIntArray() ~ Int[] {
+			DESERL_INT_ARY;
+		}
+		
+		method : public : ReadFloatArray() ~ Float[] {
+			DESERL_FLOAT_ARY;
+		}
+	}
+}
+
+#------------ File I/O ------------
+bundle System.IO.File {	
+	class File {
+		@handle : Int;
+		@name : System.String;
+		
+		New(name : System.String) {
+			Parent();
+			@name := name;
+		}
+		
+		method : public : IsOpen() ~ Bool {
+			FILE_IS_OPEN;
+		}
+
+		method : public : Seek(p : Int) ~ Bool {
+			FILE_SEEK;
+		}
+		
+		method : public : Rewind() ~ Nil {
+			FILE_REWIND;
+		}
+
+		method : public : IsEOF() ~ Bool {
+			FILE_EOF;
+		}
+		
+		function : Size(n : System.String) ~ Int {
+			FILE_SIZE;
+		}		
+		
+		function : CreateTime(n : System.String) ~ Date {
+			return CreateTime(n, false);
+		}
+
+		function : CreateTime(n : System.String, gmt : Bool) ~ Date {
+			day : Int; 
+			month : Int; 
+			year : Int; 
+			hours : Int; 
+			mins : Int; 
+			secs : Int; 
+
+			FILE_CREATE_TIME;
+
+			return Date->New(day, month, year, hours, mins, secs, gmt);
+		}		
+		
+		function : ModifiedTime(n : System.String) ~ Date {
+			return ModifiedTime(n, false);
+		}
+
+		function : ModifiedTime(n : System.String, gmt : Bool) ~ Date {
+			day : Int; 
+			month : Int; 
+			year : Int; 
+			hours : Int; 
+			mins : Int; 
+			secs : Int; 
+
+			FILE_MODIFIED_TIME;
+
+			return Date->New(day, month, year, hours, mins, secs, gmt);
+		}		
+
+		function : AccessedTime(n : System.String) ~ Date {
+			return AccessedTime(n, false);
+		}
+
+		function : AccessedTime(n : System.String, gmt : Bool) ~ Date {
+			day : Int;
+			month : Int;
+			year : Int;
+			hours : Int;
+			mins : Int;
+			secs : Int;
+			
+			FILE_ACCESSED_TIME;
+			
+			return Date->New(day, month, year, hours, mins, secs, gmt);
+		}
+		
+		function : Delete(n : System.String) ~ Bool {
+			FILE_DELETE;
+		}
+		
+		function : Exists(n : System.String) ~ Bool {
+			FILE_EXISTS;
+		}
+		
+		function : Rename(o : System.String, n : System.String) ~ Bool {
+			FILE_RENAME;
+		}
+	}
+
+	class FileReader from File implements InputStream {
+		New(name : System.String) {
+			Parent(name);
+			FILE_OPEN_READ;
+		}	
+		
+		method : public : Close() ~ Nil {
+			FILE_CLOSE;
+		}
+
+		method : public : ReadByte() ~ Byte {
+			FILE_IN_BYTE;
+		}
+
+		method : public : ReadBuffer(offset : Int, num : Int, buffer : Char[]) ~ Int {
+			FILE_IN_CHAR_ARY;
+		}
+
+		method : public : ReadBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Int {
+			FILE_IN_BYTE_ARY;
+		}
+
+		method : public : ReadString() ~ System.String {
+			buffer : Char[] := Char->New[1024];
+			ReadString(buffer);
+			return System.String->New(buffer);
+		}
+
+		method : ReadString(buffer : Char[]) ~ Nil {
+			FILE_IN_STRING;
+		}
+		
+		function : ReadFile(name : String) ~ String {
+			len := File->Size(name);
+			if(len > 0) {
+				buffer := Char->New[len];
+				in := FileReader->New(name);
+				if(in->IsOpen()) {
+					in->ReadBuffer(0, len, buffer);
+					in->Close();
+					
+					return String->New(buffer);
+				};
+			};
+	
+			return Nil;
+		}
+		
+		function : ReadBinaryFile(name : String) ~ Byte[] {
+			len := File->Size(name);
+			buffer := Byte->New[len];
+			in := FileReader->New(name);
+			if(in->IsOpen()) {
+				in->ReadBuffer(0, len, buffer);
+				in->Close();
+				
+				return buffer;
+			};
+			
+			return Nil;
+		}
+	}
+	
+	class FileWriter from File implements OutputStream {
+		New(name : System.String) {
+			Parent(name);
+			FILE_OPEN_WRITE;
+		}	
+		
+		method : public : Close() ~ Nil {
+			FILE_CLOSE;
+		}
+
+		method : public : Flush() ~ Nil {
+			FILE_FLUSH;
+		}
+
+		method : public : WriteByte(b : Int) ~ Bool {
+			FILE_OUT_BYTE;
+		}
+
+		method : public : WriteBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Int {
+			FILE_OUT_BYTE_ARY;
+		}
+
+		method : public : WriteBuffer(buffer : Byte[]) ~ Int {
+			return WriteBuffer(0, buffer->Size(), buffer);
+		}
+		
+		method : public : WriteString(str : System.String) ~ Nil {
+			WriteString(str->ToCharArray());
+		}
+
+		method : WriteString(buffer : Char[]) ~ Nil {
+			FILE_OUT_STRING;
+		}
+	}
+	
+	class Directory {
+		function : Create(n : System.String) ~ Bool {
+			DIR_CREATE;
+		}
+		
+		function : Exists(n : System.String) ~ Bool {
+			DIR_EXISTS;
+		}
+		
+		function : List(n : System.String) ~ System.String[] {
+			DIR_LIST;
+		}
+	}
+}
+
+#------------ Socket I/O ------------
+bundle System.IO.Net {
+	class TCPSocket implements InputStream, OutputStream {
+		@handle : Int;
+		@address : System.String;
+		@port : Int;
+		
+		New(address : System.String, port : Int) {
+			Parent();
+			@address := address;
+			@port := port;
+			SOCK_TCP_CONNECT;
+		}
+
+		method : public : GetAddress() ~ String {
+			return @address;
+		}
+		
+		method : public : GetPort() ~ Int {
+			return @port;
+		}
+
+		method : public : IsOpen() ~ Bool {
+			SOCK_TCP_IS_CONNECTED;
+		}
+		
+		method : public : WriteByte(b : Int) ~ Bool {
+			SOCK_TCP_OUT_BYTE;
+		}
+		
+		method : public : WriteBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Int {
+			SOCK_TCP_OUT_BYTE_ARY;
+		}
+		
+		method : public : ReadByte() ~ Byte {
+			SOCK_TCP_IN_BYTE;
+		}
+		
+		method : public : ReadBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Int {
+			SOCK_TCP_IN_BYTE_ARY;
+		}
+		
+		method : public : ReadBuffer(offset : Int, num : Int, buffer : Char[]) ~ Int {
+			SOCK_TCP_IN_BYTE_ARY;
+		}
+		
+		method : public : WriteString(str : System.String) ~ Nil {
+			WriteString(str->ToCharArray());
+		}
+
+		method : WriteString(buffer : Char[]) ~ Nil {
+			SOCK_TCP_OUT_STRING;
+		}
+		
+		method : public : native : ReadString() ~ System.String {
+			buffer : Char[] := Char->New[1024];
+			ReadString(buffer);
+			return System.String->New(buffer);
+		}
+
+		method : ReadString(buffer : Char[]) ~ Nil {
+			SOCK_TCP_IN_STRING;
+		}
+
+		function : HostName() ~ String {
+			SOCK_TCP_HOST_NAME;
+		}
+
+		method : public : Flush() ~ Nil {}
+
+		method : public : Close() ~ Nil {
+			SOCK_TCP_CLOSE;
+		}
+	}
+	
+	class TCPSecureSocket implements InputStream, OutputStream {
+		@ctx : Int;
+		@bio : Int;
+		@is_open : Bool;
+		@address : System.String;
+		@port : Int;
+		
+		New(address : System.String, port : Int) {
+			Parent();
+			@address := address;
+			@port := port;
+			SOCK_TCP_SSL_CONNECT;
+		}
+
+		method : public : GetAddress() ~ String {
+			return @address;
+		}
+		
+		method : public : GetPort() ~ Int {
+			return @port;
+		}
+
+		method : public : IsOpen() ~ Bool {
+			return @is_open;		
+		}
+		
+		method : public : WriteByte(b : Int) ~ Bool {
+			SOCK_TCP_SSL_OUT_BYTE;
+		}
+		
+		method : public : WriteBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Int {
+			SOCK_TCP_SSL_OUT_BYTE_ARY;
+		}
+		
+		method : public : ReadByte() ~ Byte {
+			SOCK_TCP_SSL_IN_BYTE;
+		}
+		
+		method : public : ReadBuffer(offset : Int, num : Int, buffer : Byte[]) ~ Int {
+			SOCK_TCP_SSL_IN_BYTE_ARY;
+		}
+		
+		method : public : ReadBuffer(offset : Int, num : Int, buffer : Char[]) ~ Int {
+			SOCK_TCP_SSL_IN_BYTE_ARY;
+		}
+		
+		method : public : WriteString(str : System.String) ~ Nil {
+			WriteString(str->ToCharArray());
+		}
+
+		method : WriteString(buffer : Char[]) ~ Nil {
+			SOCK_TCP_SSL_OUT_STRING;
+		}
+		
+		method : public : native : ReadString() ~ System.String {
+			buffer : Char[] := Char->New[1024];
+			ReadString(buffer);
+			return System.String->New(buffer);
+		}
+
+		method : ReadString(buffer : Char[]) ~ Nil {
+			SOCK_TCP_SSL_IN_STRING;
+		}
+
+		method : public : Flush() ~ Nil {}
+
+		method : public : Close() ~ Nil {
+			SOCK_TCP_SSL_CLOSE;
+		}
+	}
+	
+	class TCPSocketServer {
+		@handle : Int;
+		@port : Int;
+	   
+		New(port : Int) {
+		  Parent();
+		  @port := port;
+		  SOCK_TCP_BIND;
+		}
+	
+		method : public : Listen(backlog : Int) ~ Bool {
+			SOCK_TCP_LISTEN;
+		}
+	
+		method : public : Accept() ~ TCPSocket {
+			SOCK_TCP_ACCEPT;
+		}
+	
+		method : public : Close() ~ Nil {
+			SOCK_TCP_CLOSE;
+		}
+	}
+}
+
+#------------ Introspection ------------#
+bundle System.Introspection {
+	class Class {
+		@name : String;
+		@methods : Method[];
+	
+		function : Instance(name : System.String) ~ System.Base {
+			LOAD_NEW_OBJ_INST;
+		}
+
+		method : public : IsLoaded() ~ Bool {
+			return @methods <> Nil;
+		}
+		
+		method : public : GetName() ~ String {
+			return @name;
+		}
+		
+		method : public : GetMethods() ~ Method[] {
+			return @methods;
+		}
+		
+		method : public : GetMethodNumber() ~ Int {
+			if(@methods <> Nil) {
+				return @methods->Size();
+			};
+
+			return 0;
+		}
+	}
+	
+	class Method {
+		@native_mthd_ptr : Int;
+		@cls : Class;
+		@name : String;
+		@parameters : DataType[];
+		@rtrn_type  : DataType;
+	
+		method : public : GetClass() ~ Class {
+			return @cls;
+		}
+
+		method : public : GetName() ~ String {
+			return @name;
+		}
+		
+		method : public : GetParameters() ~ DataType[] {
+			return @parameters;
+		}
+		
+		method : public : GetReturn() ~ DataType {
+			return @rtrn_type;
+		}
+	}
+	
+	class DataType {
+		@type  : TypeId;
+		@cls_name : String;
+		@dimension : Int;
+		
+		method : public : GetType() ~ TypeId {
+			return @type;
+		}
+		
+		method : public : GetDimension() ~ Int {
+			return @dimension;
+		}
+		
+		method : public : GetClassName() ~ String {
+			return @cls_name;
+		}
+	}
+	
+	enum TypeId := -1000 {
+		BOOL,
+		BYTE,
+		CHAR,
+		INT,
+		FLOAT,
+		CLASS,
+		FUNC
+	}	
+}	

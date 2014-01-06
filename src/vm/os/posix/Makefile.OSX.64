@@ -1,0 +1,17 @@
+# ARGS=-g -Wall -Wno-unused-function -Wno-deprecated-declarations -D_X64 -D_DEBUG
+# ARGS=-g -Wall -Wno-unused-function -Wno-deprecated-declarations -D_X64 -D_DEBUG -D_GC_SERIAL
+ARGS=-O3 -Wall -Wno-unused-function -Wno-deprecated-declarations -D_OSX -D_X64 
+
+CC=clang++
+AR=ar
+SRC= memory.o
+LIB= ../../memory.a
+
+$(LIB): $(SRC)
+	$(AR) -cvq $(LIB) $(SRC)
+
+%.o: %.cpp
+	$(CC) -m64 $(ARGS) -c $< 
+
+clean:
+	rm -f *.o *~ $(LIB)

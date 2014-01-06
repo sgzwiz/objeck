@@ -1,0 +1,6 @@
+﻿class Hello {
+	function : Main(args : String[]) ~ Nil {
+		s : String;
+		s->Size();
+	}
+}

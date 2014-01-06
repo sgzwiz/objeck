@@ -1,0 +1,17 @@
+# ARGS=-g -Wall -D_X64 -D_DEBUG -Wno-unused-function
+# ARGS=-g -Wall -D_X64 -D_DEBUG -D_GC_SERIAL -Wno-unused-function
+ARGS=-O3 -Wall -D_X64 -Wno-unused-function
+
+CC=g++
+AR=ar
+SRC= memory.o
+LIB= ../../memory.a
+
+$(LIB): $(SRC)
+	$(AR) -cvq $(LIB) $(SRC)
+
+%.o: %.cpp
+	$(CC) -m64 $(ARGS) -c $< 
+
+clean:
+	rm -f *.o *~ $(LIB)

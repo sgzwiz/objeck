@@ -1,0 +1,12 @@
+<#meta class=Foo request=res respeonse=req/>
+<html>
+	<head>
+	</head> 
+
+	<body>
+		<p><b>
+			<#code>res->AddBody(req->GetRequestMethod());</#code></b>
+		</p>
+		<p><i><#code>res->AddBody(req->GetRequestUri());</#code></i></p>
+	</body>
+</html> 
